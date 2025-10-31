@@ -1,7 +1,7 @@
-import { createAdapter } from 'better-auth/adapters';
-import { queryBuilder } from './util/queryBuilder';
-import { Cosmos } from './cosmos';
 import { CosmosClientOptions } from '@azure/cosmos';
+import { createAdapterFactory } from 'better-auth/adapters';
+import { Cosmos } from './cosmos';
+import { queryBuilder } from './util/queryBuilder';
 
 interface CosmosAdapterConfig {
   adapterId: string;
@@ -17,7 +17,7 @@ export const buildCosmosAdapter = async (config: CosmosAdapterConfig) => {
 
   const cosmos = await Cosmos.create(dbCredentials, dbName, ['users', 'sessions', 'verifications', 'accounts']);
 
-  return createAdapter({
+  return createAdapterFactory({
     config: {
       adapterId,
       adapterName,
@@ -28,7 +28,7 @@ export const buildCosmosAdapter = async (config: CosmosAdapterConfig) => {
       supportsBooleans: true,
       supportsNumericIds: false,
     },
-    adapter: ({ debugLog, getModelName, getFieldName }) => {
+    adapter: () => {
       return {
         create: async ({ model, data }) => {
           return await cosmos.create(model, data);

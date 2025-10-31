@@ -1,17 +1,25 @@
 {
+  "extends": "@wemogy/config/typescript/tsconfig.base.json",
   "compilerOptions": {
-    "target": "es2022",
-    "module": "Es2022",
-    "strict": true,
-    "esModuleInterop": true,
-    "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true,
+    /* Library build overrides */
+    "noEmit": false,
+    "declaration": true,
     "outDir": "./dist",
     "rootDir": "./src",
+    "module": "ES2022",
     "moduleResolution": "node",
-    "strictPropertyInitialization": false,
-    "declaration": true
+    "target": "ES2022",
+    "allowImportingTsExtensions": false,
+    /* Additional strict checks */
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "strictPropertyInitialization": false
   },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules", "**/*.spec.ts"]
+  "include": [
+    "src/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "**/*.spec.ts"
+  ]
 }

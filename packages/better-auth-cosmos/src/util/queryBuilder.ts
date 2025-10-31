@@ -10,17 +10,12 @@ interface QueryBuilderOptions {
 export const queryBuilder = ({ select = ['*'], where, sortBy, offset, limit }: QueryBuilderOptions) => {
   const conditions: string[] = [];
   for (const w of where ?? []) {
-    conditions.push(`${conditions.length ? w.connector : ''} ${mapCondition(w)}`);
+    conditions.push(`${conditions.length ? ` ${w.connector} ` : ''}${mapCondition(w)}`);
   }
 
   const columns = select.length === 1 && select.at(0) === '*' ? '*' : select.map(column => `c.${column}`).join(', ');
 
-  const query = `
-        SELECT ${columns} FROM c 
-        ${conditions.length ? `WHERE ${conditions.join(' ')}` : ''} 
-        ${sortBy ? `ORDER BY c.${sortBy.field} ${sortBy.direction}` : ''} 
-        ${(offset && limit) || limit ? `OFFSET ${offset ? offset : '0'} LIMIT ${limit || 0}` : ''} 
-    `;
+  const query = `SELECT ${columns} FROM c${conditions.length ? ` WHERE ${conditions.join(' ')}` : ''}${sortBy ? ` ORDER BY c.${sortBy.field} ${sortBy.direction}` : ''}${offset !== undefined || limit !== undefined ? ` OFFSET ${offset || 0} LIMIT ${limit || 0}` : ''}`;
   return query.trim();
 };
 
@@ -42,18 +37,25 @@ const mapCondition = (where: CleanedWhere) => {
   switch (where.operator) {
     case 'eq':
       mappedOperator = '=';
+      break;
     case 'ne':
       mappedOperator = '!=';
+      break;
     case 'lt':
       mappedOperator = '<';
+      break;
     case 'lte':
       mappedOperator = '<=';
+      break;
     case 'gt':
       mappedOperator = '>';
+      break;
     case 'gte':
       mappedOperator = '>=';
+      break;
     default:
       mappedOperator = '=';
+      break;
   }
 
   return `c.${where.field} ${mappedOperator} '${where.value}'`;
