@@ -1,0 +1,28 @@
+{
+  "$schema": "https://turborepo.com/schema.json",
+  "ui": "tui",
+  "tasks": {
+    "build": {
+      "inputs": ["$TURBO_DEFAULT$", ".env*"],
+      "outputs": ["dist/**", "storybook-static/**"],
+      "dependsOn": ["^build", "typedoc:build"]
+    },
+    "dev": {
+      "with": ["typedoc:dev"],
+      "cache": false,
+      "persistent": true
+    },
+    "typedoc:dev": {
+      "cache": false,
+      "persistent": true
+    },
+    "typedoc:build": {
+      "inputs": ["$TURBO_DEFAULT$", ".env*"],
+      "outputs": ["typedoc/**"]
+    },
+    "lint": {},
+    "lint:check": {},
+    "typecheck": {}
+  },
+  "noUpdateNotifier": true
+}

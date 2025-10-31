@@ -1,0 +1,66 @@
+name: Release NPM package
+on:
+  push:
+    branches:
+      - release
+
+jobs:
+  get-version:
+    name: Get release version
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      next-version: ${{ steps.get-release-version.outputs.version }}
+      next-version-name: ${{ steps.get-release-version.outputs.version-name }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: wemogy/get-release-version-action@v4.3.2
+        id: get-release-version
+        with:
+          mode: semantic
+          create-tag: true
+          prefix: v
+          git-username: wemogy IT
+          git-email: it@wemogy.com
+
+  release:
+    name: Release NPM package
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+    needs:
+      - get-version
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          package_json_file: package.json
+
+      - name: Set up node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: package.json
+          registry-url: https://npm.pkg.github.com/
+
+      - name: Update package version
+        run: pnpm -r exec pnpm version ${{ needs.get-version.outputs.next-version }} --no-git-tag-version --allow-same-version
+
+      - name: Publish NPM packages
+        run: pnpm publish --no-git-checks -r
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.get-version.outputs.next-version-name }}
+          name: Version ${{ needs.get-version.outputs.next-version }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
