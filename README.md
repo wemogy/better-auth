@@ -5,15 +5,18 @@ This repository contains the official wemogy tooling around the Azure Cosmos DB 
 Maintained by **wemogy**.
 
 ## Packages
+
 - `packages/better-auth-cosmos` – Published as `@wemogy/better-auth-cosmos`. Provides the Cosmos DB adapter consumed by better-auth. See the package-level [README](packages/better-auth-cosmos/README.md) for detailed usage instructions.
 
 ## Applications
+
 - `apps/demo-api` – Hono-based API that demonstrates how to expose better-auth endpoints backed by Cosmos DB.
 - `apps/demo` – React single-page application that interacts with the demo API to exercise the authentication flows.
 
 ## Getting Started
 
 Prerequisites:
+
 - Node.js 20 or newer
 - [pnpm](https://pnpm.io/) (the repo is configured with a workspace)
 
@@ -56,6 +59,7 @@ COSMOS_DB_NAME="better-auth"
 ## Release Process
 
 Releases are automated via GitHub Actions:
+
 - Push changes to the `release` branch.
 - The workflow calculates the next semantic version, updates all workspace packages, publishes them to GitHub Packages, and creates a GitHub release tagged with the new version.
 

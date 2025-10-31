@@ -3,18 +3,27 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { buildCosmosAdapter } from '../src';
 
 // Mock the @azure/cosmos module
+let mockCosmosClientInstance: any;
+
 vi.mock('@azure/cosmos', () => {
   const MockCosmosClient = class {
     databases: any;
     constructor() {
-      this.databases = {
-        createIfNotExists: vi.fn(),
+      const instance = mockCosmosClientInstance || {
+        databases: {
+          createIfNotExists: vi.fn(),
+        },
       };
+      Object.assign(this, instance);
+      return instance;
     }
   };
+  
+  // Make it spyable
+  const spyableMock = vi.fn(MockCosmosClient);
 
   return {
-    CosmosClient: MockCosmosClient,
+    CosmosClient: spyableMock,
   };
 });
 
@@ -43,7 +52,7 @@ describe('Error Handling Tests', () => {
           createIfNotExists: vi.fn().mockRejectedValue(new Error('Invalid credentials')),
         },
       };
-      vi.mocked(CosmosClient).mockImplementation(() => mockClient as any);
+      mockCosmosClientInstance = mockClient;
 
       await expect(
         buildCosmosAdapter({
@@ -63,7 +72,7 @@ describe('Error Handling Tests', () => {
           createIfNotExists: vi.fn().mockRejectedValue(new Error('Database creation failed')),
         },
       };
-      vi.mocked(CosmosClient).mockImplementation(() => mockClient as any);
+      mockCosmosClientInstance = mockClient;
 
       await expect(
         buildCosmosAdapter({
@@ -89,7 +98,7 @@ describe('Error Handling Tests', () => {
           }),
         },
       };
-      vi.mocked(CosmosClient).mockImplementation(() => mockClient as any);
+      mockCosmosClientInstance = mockClient;
 
       await expect(
         buildCosmosAdapter({
@@ -131,14 +140,22 @@ describe('Error Handling Tests', () => {
           }),
         },
       };
-      vi.mocked(CosmosClient).mockImplementation(() => mockClient as any);
+      mockCosmosClientInstance = mockClient;
 
-      adapter = await buildCosmosAdapter({
+      const adapterFactory = await buildCosmosAdapter({
         adapterId: 'test-adapter',
         adapterName: 'Test Adapter',
         dbCredentials: { endpoint: 'test-endpoint', key: 'test-key' },
         dbName: 'test-db',
         usePlural: true,
+      });
+      adapter = adapterFactory({
+        schema: {
+          users: { id: 'string' },
+          sessions: { id: 'string' },
+          verifications: { id: 'string' },
+          accounts: { id: 'string' },
+        },
       });
     });
 
@@ -156,7 +173,8 @@ describe('Error Handling Tests', () => {
       });
 
       it('should handle invalid data format during create', async () => {
-        mockContainer.items.create.mockRejectedValue(new Error('Invalid input data'));
+        // Reset mock to ensure it throws the error
+        mockContainer.items.create = vi.fn().mockRejectedValue(new Error('Invalid input data'));
 
         await expect(adapter.create({ model: 'users', data: null as any })).rejects.toThrow('Invalid input data');
       });
@@ -164,10 +182,9 @@ describe('Error Handling Tests', () => {
 
     describe('read operation errors', () => {
       it('should handle findOne operation failure', async () => {
-        const mockQuery = {
+        mockContainer.items.query = vi.fn().mockReturnValue({
           fetchAll: vi.fn().mockRejectedValue(new Error('Query execution failed')),
-        };
-        mockContainer.items.query.mockReturnValue(mockQuery);
+        });
 
         await expect(adapter.findOne({ model: 'users', where: [{ field: 'id', value: '123', operator: 'eq' }] })).rejects.toThrow(
           'Query execution failed',
@@ -175,10 +192,9 @@ describe('Error Handling Tests', () => {
       });
 
       it('should handle findMany operation failure', async () => {
-        const mockQuery = {
+        mockContainer.items.query = vi.fn().mockReturnValue({
           fetchAll: vi.fn().mockRejectedValue(new Error('Batch query failed')),
-        };
-        mockContainer.items.query.mockReturnValue(mockQuery);
+        });
 
         await expect(adapter.findMany({ model: 'users', where: [{ field: 'status', value: 'active', operator: 'eq' }] })).rejects.toThrow(
           'Batch query failed',
@@ -186,10 +202,9 @@ describe('Error Handling Tests', () => {
       });
 
       it('should handle malformed query', async () => {
-        const mockQuery = {
+        mockContainer.items.query = vi.fn().mockReturnValue({
           fetchAll: vi.fn().mockRejectedValue(new Error('Invalid query syntax')),
-        };
-        mockContainer.items.query.mockReturnValue(mockQuery);
+        });
 
         await expect(adapter.findMany({ model: 'users', where: [{ field: 'invalid.field', value: 'test', operator: 'eq' }] })).rejects.toThrow(
           'Invalid query syntax',
@@ -199,10 +214,11 @@ describe('Error Handling Tests', () => {
 
     describe('update operation errors', () => {
       it('should handle update operation failure', async () => {
-        mockContainer.items.query.mockResolvedValue({
+        const mockQuery = {
           fetchAll: vi.fn().mockResolvedValue({ resources: [{ id: '123', name: 'Old Name' }] }),
-        });
-        mockContainer.items.upsert.mockRejectedValue(new Error('Update operation failed'));
+        };
+        mockContainer.items.query = vi.fn().mockReturnValue(mockQuery);
+        mockContainer.items.upsert = vi.fn().mockRejectedValue(new Error('Update operation failed'));
 
         await expect(
           adapter.update({
@@ -214,7 +230,8 @@ describe('Error Handling Tests', () => {
       });
 
       it('should handle updateMany operation failure', async () => {
-        mockContainer.items.query.mockResolvedValue({
+        // Reset mocks first
+        mockContainer.items.query = vi.fn().mockReturnValue({
           fetchAll: vi.fn().mockResolvedValue({
             resources: [
               { id: '1', name: 'User 1' },
@@ -222,7 +239,7 @@ describe('Error Handling Tests', () => {
             ],
           }),
         });
-        mockContainer.items.upsert.mockRejectedValue(new Error('Batch update failed'));
+        mockContainer.items.upsert = vi.fn().mockRejectedValue(new Error('Batch update failed'));
 
         await expect(
           adapter.updateMany({
@@ -234,10 +251,11 @@ describe('Error Handling Tests', () => {
       });
 
       it('should handle concurrent update conflicts', async () => {
-        mockContainer.items.query.mockResolvedValue({
+        const mockQuery = {
           fetchAll: vi.fn().mockResolvedValue({ resources: [{ id: '123', name: 'Test', _etag: '"old-etag"' }] }),
-        });
-        mockContainer.items.upsert.mockRejectedValue(new Error('PreconditionFailed'));
+        };
+        mockContainer.items.query = vi.fn().mockReturnValue(mockQuery);
+        mockContainer.items.upsert = vi.fn().mockRejectedValue(new Error('PreconditionFailed'));
 
         await expect(
           adapter.update({
@@ -251,13 +269,13 @@ describe('Error Handling Tests', () => {
 
     describe('delete operation errors', () => {
       it('should handle delete operation failure', async () => {
-        mockContainer.items.query.mockResolvedValue({
+        mockContainer.items.query = vi.fn().mockReturnValue({
           fetchAll: vi.fn().mockResolvedValue({ resources: [{ id: '123', name: 'Test' }] }),
         });
         const mockItem = {
           delete: vi.fn().mockRejectedValue(new Error('Delete operation failed')),
         };
-        mockContainer.items.item.mockReturnValue(mockItem);
+        mockContainer.items.item = vi.fn().mockReturnValue(mockItem);
 
         await expect(adapter.delete({ model: 'users', where: [{ field: 'id', value: '123', operator: 'eq' }] })).rejects.toThrow(
           'Delete operation failed',
@@ -265,7 +283,7 @@ describe('Error Handling Tests', () => {
       });
 
       it('should handle deleteMany operation failure', async () => {
-        mockContainer.items.query.mockResolvedValue({
+        mockContainer.items.query = vi.fn().mockReturnValue({
           fetchAll: vi.fn().mockResolvedValue({
             resources: [
               { id: '1', name: 'User 1' },
@@ -276,7 +294,7 @@ describe('Error Handling Tests', () => {
         const mockItem = {
           delete: vi.fn().mockRejectedValue(new Error('Batch delete failed')),
         };
-        mockContainer.items.item.mockReturnValue(mockItem);
+        mockContainer.items.item = vi.fn().mockReturnValue(mockItem);
 
         await expect(adapter.deleteMany({ model: 'users', where: [{ field: 'status', value: 'deleted', operator: 'eq' }] })).rejects.toThrow(
           'Batch delete failed',
@@ -284,13 +302,14 @@ describe('Error Handling Tests', () => {
       });
 
       it('should handle deletion of non-existent item', async () => {
-        mockContainer.items.query.mockResolvedValue({
+        const mockQuery = {
           fetchAll: vi.fn().mockResolvedValue({ resources: [] }),
-        });
+        };
+        mockContainer.items.query = vi.fn().mockReturnValue(mockQuery);
         const mockItem = {
           delete: vi.fn().mockRejectedValue(new Error('NotFound')),
         };
-        mockContainer.items.item.mockReturnValue(mockItem);
+        mockContainer.items.item = vi.fn().mockReturnValue(mockItem);
 
         // Should not throw when item doesn't exist (graceful handling)
         await expect(adapter.delete({ model: 'users', where: [{ field: 'id', value: '999', operator: 'eq' }] })).resolves.toBeUndefined();
@@ -299,7 +318,11 @@ describe('Error Handling Tests', () => {
 
     describe('count operation errors', () => {
       it('should handle count operation failure', async () => {
-        mockContainer.items.query.mockRejectedValue(new Error('Count query failed'));
+        mockContainer.items.query = vi.fn().mockImplementation(() => {
+          return {
+            fetchAll: vi.fn().mockRejectedValue(new Error('Count query failed')),
+          };
+        });
 
         await expect(adapter.count({ model: 'users', where: [{ field: 'status', value: 'active', operator: 'eq' }] })).rejects.toThrow(
           'Count query failed',
@@ -307,7 +330,11 @@ describe('Error Handling Tests', () => {
       });
 
       it('should handle count with complex query failure', async () => {
-        mockContainer.items.query.mockRejectedValue(new Error('Query too complex'));
+        mockContainer.items.query = vi.fn().mockImplementation(() => {
+          return {
+            fetchAll: vi.fn().mockRejectedValue(new Error('Query too complex')),
+          };
+        });
 
         await expect(
           adapter.count({
@@ -331,7 +358,7 @@ describe('Error Handling Tests', () => {
           createIfNotExists: vi.fn().mockRejectedValue(new Error('Connection timeout')),
         },
       };
-      vi.mocked(CosmosClient).mockImplementation(() => mockClient as any);
+      mockCosmosClientInstance = mockClient;
 
       await expect(
         buildCosmosAdapter({
@@ -351,7 +378,7 @@ describe('Error Handling Tests', () => {
           createIfNotExists: vi.fn().mockRejectedValue(new Error('Unauthorized')),
         },
       };
-      vi.mocked(CosmosClient).mockImplementation(() => mockClient as any);
+      mockCosmosClientInstance = mockClient;
 
       await expect(
         buildCosmosAdapter({
@@ -371,7 +398,7 @@ describe('Error Handling Tests', () => {
           createIfNotExists: vi.fn().mockRejectedValue(new Error('ENOTFOUND')),
         },
       };
-      vi.mocked(CosmosClient).mockImplementation(() => mockClient as any);
+      mockCosmosClientInstance = mockClient;
 
       await expect(
         buildCosmosAdapter({
@@ -386,17 +413,19 @@ describe('Error Handling Tests', () => {
 
   describe('Data Validation Error Handling', () => {
     it('should handle invalid field names in queries', async () => {
+      const mockContainer = {
+        items: {
+          query: vi.fn().mockReturnValue({
+            fetchAll: vi.fn().mockRejectedValue(new Error('Invalid field name')),
+          }),
+        },
+      };
+
       const mockClient = {
         databases: {
           createIfNotExists: vi.fn().mockResolvedValue({
             database: {
-              container: vi.fn().mockReturnValue({
-                items: {
-                  query: vi.fn().mockReturnValue({
-                    fetchAll: vi.fn().mockRejectedValue(new Error('Invalid field name')),
-                  }),
-                },
-              }),
+              container: vi.fn().mockReturnValue(mockContainer),
               containers: {
                 createIfNotExists: vi.fn().mockResolvedValue({}),
               },
@@ -404,13 +433,21 @@ describe('Error Handling Tests', () => {
           }),
         },
       };
-      vi.mocked(CosmosClient).mockImplementation(() => mockClient as any);
+      mockCosmosClientInstance = mockClient;
 
-      const adapter = await buildCosmosAdapter({
+      const adapterFactory = await buildCosmosAdapter({
         adapterId: 'test-adapter',
         adapterName: 'Test Adapter',
         dbCredentials: { endpoint: 'test-endpoint', key: 'test-key' },
         dbName: 'test-db',
+      });
+      const adapter = adapterFactory({
+        schema: {
+          users: { id: 'string' },
+          sessions: { id: 'string' },
+          verifications: { id: 'string' },
+          accounts: { id: 'string' },
+        },
       });
 
       await expect(
@@ -422,15 +459,17 @@ describe('Error Handling Tests', () => {
     });
 
     it('should handle malformed data in create operations', async () => {
+      const mockContainer = {
+        items: {
+          create: vi.fn().mockRejectedValue(new Error('Invalid document structure')),
+        },
+      };
+
       const mockClient = {
         databases: {
           createIfNotExists: vi.fn().mockResolvedValue({
             database: {
-              container: vi.fn().mockReturnValue({
-                items: {
-                  create: vi.fn().mockRejectedValue(new Error('Invalid document structure')),
-                },
-              }),
+              container: vi.fn().mockReturnValue(mockContainer),
               containers: {
                 createIfNotExists: vi.fn().mockResolvedValue({}),
               },
@@ -438,13 +477,21 @@ describe('Error Handling Tests', () => {
           }),
         },
       };
-      vi.mocked(CosmosClient).mockImplementation(() => mockClient as any);
+      mockCosmosClientInstance = mockClient;
 
-      const adapter = await buildCosmosAdapter({
+      const adapterFactory = await buildCosmosAdapter({
         adapterId: 'test-adapter',
         adapterName: 'Test Adapter',
         dbCredentials: { endpoint: 'test-endpoint', key: 'test-key' },
         dbName: 'test-db',
+      });
+      const adapter = adapterFactory({
+        schema: {
+          users: { id: 'string' },
+          sessions: { id: 'string' },
+          verifications: { id: 'string' },
+          accounts: { id: 'string' },
+        },
       });
 
       await expect(
@@ -460,15 +507,17 @@ describe('Error Handling Tests', () => {
     it('should handle debug logging configuration', async () => {
       const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
 
+      const mockContainer = {
+        items: {
+          create: vi.fn().mockRejectedValue(new Error('Test error')),
+        },
+      };
+
       const mockClient = {
         databases: {
           createIfNotExists: vi.fn().mockResolvedValue({
             database: {
-              container: vi.fn().mockReturnValue({
-                items: {
-                  create: vi.fn().mockRejectedValue(new Error('Test error')),
-                },
-              }),
+              container: vi.fn().mockReturnValue(mockContainer),
               containers: {
                 createIfNotExists: vi.fn().mockResolvedValue({}),
               },
@@ -476,14 +525,22 @@ describe('Error Handling Tests', () => {
           }),
         },
       };
-      vi.mocked(CosmosClient).mockImplementation(() => mockClient as any);
+      mockCosmosClientInstance = mockClient;
 
-      const adapter = await buildCosmosAdapter({
+      const adapterFactory = await buildCosmosAdapter({
         adapterId: 'test-adapter',
         adapterName: 'Test Adapter',
         dbCredentials: { endpoint: 'test-endpoint', key: 'test-key' },
         dbName: 'test-db',
         debugLogs: true,
+      });
+      const adapter = adapterFactory({
+        schema: {
+          users: { id: 'string' },
+          sessions: { id: 'string' },
+          verifications: { id: 'string' },
+          accounts: { id: 'string' },
+        },
       });
 
       await expect(adapter.create({ model: 'users', data: { id: '123', name: 'Test' } })).rejects.toThrow('Test error');

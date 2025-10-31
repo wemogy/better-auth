@@ -9,18 +9,21 @@ vi.mock('@azure/cosmos', () => {
   const MockCosmosClient = class {
     databases: any;
     constructor() {
-      return (
-        mockCosmosClientInstance || {
-          databases: {
-            createIfNotExists: vi.fn(),
-          },
-        }
-      );
+      const instance = mockCosmosClientInstance || {
+        databases: {
+          createIfNotExists: vi.fn(),
+        },
+      };
+      Object.assign(this, instance);
+      return instance;
     }
   };
+  
+  // Make it spyable
+  const spyableMock = vi.fn(MockCosmosClient);
 
   return {
-    CosmosClient: MockCosmosClient,
+    CosmosClient: spyableMock,
     Database: class {},
     Container: class {},
     Items: class {},
@@ -44,6 +47,9 @@ describe('Cosmos Class', () => {
 
     mockContainer = {
       items: mockItems,
+      item: vi.fn().mockReturnValue({
+        delete: vi.fn().mockResolvedValue({}),
+      }),
     };
 
     mockDatabase = {
@@ -297,12 +303,12 @@ describe('Cosmos Class', () => {
       const mockItem = {
         delete: vi.fn().mockResolvedValue({}),
       };
-      mockItems.item.mockReturnValue(mockItem);
+      mockContainer.item.mockReturnValue(mockItem);
 
       await cosmos.delete(containerName, id);
 
       expect(mockDatabase.container).toHaveBeenCalledWith(containerName);
-      expect(mockItems.item).toHaveBeenCalledWith(id, id);
+      expect(mockContainer.item).toHaveBeenCalledWith(id, id);
       expect(mockItem.delete).toHaveBeenCalled();
     });
 
@@ -313,7 +319,7 @@ describe('Cosmos Class', () => {
       const mockItem = {
         delete: vi.fn().mockRejectedValue(new Error('Delete failed')),
       };
-      mockItems.item.mockReturnValue(mockItem);
+      mockContainer.item.mockReturnValue(mockItem);
 
       await expect(cosmos.delete(containerName, id)).rejects.toThrow('Delete failed');
     });
