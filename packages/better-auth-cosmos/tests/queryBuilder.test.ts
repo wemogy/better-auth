@@ -68,7 +68,7 @@ describe('QueryBuilder', () => {
     });
 
     it('should use default operator for unknown operators', () => {
-      const where: CleanedWhere[] = [{ field: 'type', value: 'test', operator: 'unknown' as any, connector: 'AND' }];
+      const where: CleanedWhere[] = [{ field: 'type', value: 'test', operator: 'unknown' as unknown as CleanedWhere['operator'], connector: 'AND' }];
       const query = queryBuilder({ where });
       expect(query).toBe("SELECT * FROM c WHERE c.type = 'test'");
     });

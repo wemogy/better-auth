@@ -1,13 +1,19 @@
-import { CosmosClient } from '@azure/cosmos';
+import type { CosmosClientOptions } from '@azure/cosmos';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { buildCosmosAdapter } from '../src';
 
 // Mock the @azure/cosmos module
-let mockCosmosClientInstance: any;
+interface MockCosmosClientInstance {
+  databases: {
+    createIfNotExists: ReturnType<typeof vi.fn>;
+  };
+}
+
+let mockCosmosClientInstance: MockCosmosClientInstance | undefined;
 
 vi.mock('@azure/cosmos', () => {
   const MockCosmosClient = class {
-    databases: any;
+    databases: MockCosmosClientInstance['databases'];
     constructor() {
       const instance = mockCosmosClientInstance || {
         databases: {
@@ -38,7 +44,7 @@ describe('Error Handling Tests', () => {
         buildCosmosAdapter({
           adapterId: 'test-adapter',
           adapterName: 'Test Adapter',
-          dbCredentials: {} as any,
+          dbCredentials: {} as CosmosClientOptions,
           dbName: 'test-db',
         }),
       ).rejects.toThrow();
@@ -113,8 +119,15 @@ describe('Error Handling Tests', () => {
   });
 
   describe('CRUD Operation Error Handling', () => {
-    let adapter: any;
-    let mockContainer: any;
+    let adapter: ReturnType<Awaited<ReturnType<typeof buildCosmosAdapter>>>;
+    let mockContainer: {
+      items: {
+        create: ReturnType<typeof vi.fn>;
+        upsert: ReturnType<typeof vi.fn>;
+        query: ReturnType<typeof vi.fn>;
+        item: ReturnType<typeof vi.fn>;
+      };
+    };
 
     beforeEach(async () => {
       mockContainer = {
@@ -156,7 +169,7 @@ describe('Error Handling Tests', () => {
           verifications: { id: 'string' },
           accounts: { id: 'string' },
         },
-      });
+      } as Parameters<typeof adapterFactory>[0]);
     });
 
     describe('create operation errors', () => {
@@ -176,7 +189,7 @@ describe('Error Handling Tests', () => {
         // Reset mock to ensure it throws the error
         mockContainer.items.create = vi.fn().mockRejectedValue(new Error('Invalid input data'));
 
-        await expect(adapter.create({ model: 'users', data: null as any })).rejects.toThrow('Invalid input data');
+        await expect(adapter.create({ model: 'users', data: null as unknown as Record<string, unknown> })).rejects.toThrow('Invalid input data');
       });
     });
 
@@ -448,7 +461,7 @@ describe('Error Handling Tests', () => {
           verifications: { id: 'string' },
           accounts: { id: 'string' },
         },
-      });
+      } as Parameters<typeof adapterFactory>[0]);
 
       await expect(
         adapter.findMany({
@@ -492,7 +505,7 @@ describe('Error Handling Tests', () => {
           verifications: { id: 'string' },
           accounts: { id: 'string' },
         },
-      });
+      } as Parameters<typeof adapterFactory>[0]);
 
       await expect(
         adapter.create({
@@ -541,7 +554,7 @@ describe('Error Handling Tests', () => {
           verifications: { id: 'string' },
           accounts: { id: 'string' },
         },
-      });
+      } as Parameters<typeof adapterFactory>[0]);
 
       await expect(adapter.create({ model: 'users', data: { id: '123', name: 'Test' } })).rejects.toThrow('Test error');
 

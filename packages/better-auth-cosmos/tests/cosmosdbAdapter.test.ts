@@ -1,14 +1,13 @@
-import { CosmosClient } from '@azure/cosmos';
 import { runAdapterTest } from 'better-auth/adapters/test';
-import { expect, test, describe, vi, beforeEach } from 'vitest';
+import { describe, vi, beforeAll } from 'vitest';
 import { buildCosmosAdapter } from '../src';
 
 // Mock the @azure/cosmos module
-const mockDataStore: Record<string, any[]> = {};
+const mockDataStore: Record<string, unknown[]> = {};
 
 vi.mock('@azure/cosmos', () => {
   const MockCosmosClient = class {
-    databases: any;
+    databases: unknown;
     constructor() {
       // Don't reset here - let beforeEach handle it
 
@@ -20,24 +19,32 @@ vi.mock('@azure/cosmos', () => {
                 mockDataStore[containerName] = [];
               }
 
-              return {
+              const containerMock = {
                 items: {
-                  create: vi.fn().mockImplementation(async (item: any) => {
-                    const resource = { ...item, id: item.id || `mock-${Date.now()}-${Math.random()}` };
+                  create: vi.fn().mockImplementation(async (item: unknown) => {
+                    const itemRecord = item as Record<string, unknown>;
+                    const resource = { ...itemRecord, id: itemRecord.id || `mock-${Date.now()}-${Math.random()}` };
                     mockDataStore[containerName].push(resource);
                     return { resource };
                   }),
-                  upsert: vi.fn().mockImplementation(async (item: any) => {
-                    const index = mockDataStore[containerName].findIndex((i: any) => i.id === item.id);
+                  upsert: vi.fn().mockImplementation(async (item: unknown) => {
+                    const itemRecord = item as Record<string, unknown>;
+                    const index = mockDataStore[containerName].findIndex((i: unknown) => (i as Record<string, unknown>).id === itemRecord.id);
                     if (index >= 0) {
-                      mockDataStore[containerName][index] = { ...mockDataStore[containerName][index], ...item };
+                      mockDataStore[containerName][index] = {
+                        ...(mockDataStore[containerName][index] as Record<string, unknown>),
+                        ...itemRecord,
+                      };
                     } else {
-                      mockDataStore[containerName].push({ ...item, id: item.id || `mock-${Date.now()}-${Math.random()}` });
+                      mockDataStore[containerName].push({
+                        ...itemRecord,
+                        id: itemRecord.id || `mock-${Date.now()}-${Math.random()}`,
+                      });
                     }
-                    const resource = mockDataStore[containerName].find((i: any) => i.id === item.id) || item;
+                    const resource = mockDataStore[containerName].find((i: unknown) => (i as Record<string, unknown>).id === itemRecord.id) || item;
                     return { resource };
                   }),
-                  query: vi.fn().mockImplementation((querySpec: any) => {
+                  query: vi.fn().mockImplementation((querySpec: unknown) => {
                     // Parse SQL query and filter results
                     if (!mockDataStore[containerName]) {
                       mockDataStore[containerName] = [];
@@ -48,8 +55,8 @@ vi.mock('@azure/cosmos', () => {
                     let sql = '';
                     if (typeof querySpec === 'string') {
                       sql = querySpec;
-                    } else if (querySpec && typeof querySpec.query === 'string') {
-                      sql = querySpec.query;
+                    } else if (querySpec && typeof (querySpec as Record<string, unknown>).query === 'string') {
+                      sql = (querySpec as Record<string, unknown>).query as string;
                     }
 
                     if (sql) {
@@ -73,14 +80,14 @@ vi.mock('@azure/cosmos', () => {
                         const eqMatches = Array.from(conditions.matchAll(/c\.(\w+)\s*=\s*'([^']+)'/g));
                         for (const match of eqMatches) {
                           const [, field, value] = match;
-                          filtered = filtered.filter((item: any) => String(item[field]) === String(value));
+                          filtered = filtered.filter((item: unknown) => String((item as Record<string, unknown>)[field]) === String(value));
                         }
 
                         // Parse != operator
                         const neMatches = Array.from(conditions.matchAll(/c\.(\w+)\s*!=\s*'([^']+)'/g));
                         for (const match of neMatches) {
                           const [, field, value] = match;
-                          filtered = filtered.filter((item: any) => String(item[field]) !== String(value));
+                          filtered = filtered.filter((item: unknown) => String((item as Record<string, unknown>)[field]) !== String(value));
                         }
 
                         // Parse IN clause: c.field IN ('val1', 'val2')
@@ -88,7 +95,7 @@ vi.mock('@azure/cosmos', () => {
                         for (const match of inMatches) {
                           const [, field, valuesStr] = match;
                           const values = valuesStr.split(',').map((v: string) => v.trim().replace(/^'|'$/g, ''));
-                          filtered = filtered.filter((item: any) => values.includes(String(item[field])));
+                          filtered = filtered.filter((item: unknown) => values.includes(String((item as Record<string, unknown>)[field])));
                         }
 
                         // Parse NOT IN
@@ -96,28 +103,37 @@ vi.mock('@azure/cosmos', () => {
                         for (const match of notInMatches) {
                           const [, field, valuesStr] = match;
                           const values = valuesStr.split(',').map((v: string) => v.trim().replace(/^'|'$/g, ''));
-                          filtered = filtered.filter((item: any) => !values.includes(String(item[field])));
+                          filtered = filtered.filter((item: unknown) => !values.includes(String((item as Record<string, unknown>)[field])));
                         }
 
                         // Parse CONTAINS
                         const containsMatches = Array.from(conditions.matchAll(/CONTAINS\(c\.(\w+),\s*'([^']+)'/gi));
                         for (const match of containsMatches) {
                           const [, field, value] = match;
-                          filtered = filtered.filter((item: any) => item[field] && String(item[field]).toLowerCase().includes(value.toLowerCase()));
+                          filtered = filtered.filter((item: unknown) => {
+                            const itemRecord = item as Record<string, unknown>;
+                            return itemRecord[field] && String(itemRecord[field]).toLowerCase().includes(value.toLowerCase());
+                          });
                         }
 
                         // Parse STARTSWITH
                         const startsWithMatches = Array.from(conditions.matchAll(/STARTSWITH\(c\.(\w+),\s*'([^']+)'/gi));
                         for (const match of startsWithMatches) {
                           const [, field, value] = match;
-                          filtered = filtered.filter((item: any) => item[field] && String(item[field]).toLowerCase().startsWith(value.toLowerCase()));
+                          filtered = filtered.filter((item: unknown) => {
+                            const itemRecord = item as Record<string, unknown>;
+                            return itemRecord[field] && String(itemRecord[field]).toLowerCase().startsWith(value.toLowerCase());
+                          });
                         }
 
                         // Parse ENDSWITH
                         const endsWithMatches = Array.from(conditions.matchAll(/ENDSWITH\(c\.(\w+),\s*'([^']+)'/gi));
                         for (const match of endsWithMatches) {
                           const [, field, value] = match;
-                          filtered = filtered.filter((item: any) => item[field] && String(item[field]).toLowerCase().endsWith(value.toLowerCase()));
+                          filtered = filtered.filter((item: unknown) => {
+                            const itemRecord = item as Record<string, unknown>;
+                            return itemRecord[field] && String(itemRecord[field]).toLowerCase().endsWith(value.toLowerCase());
+                          });
                         }
                       }
 
@@ -125,10 +141,15 @@ vi.mock('@azure/cosmos', () => {
                       const orderByMatch = sql.match(/ORDER BY\s+c\.(\w+)\s+(ASC|DESC)/i);
                       if (orderByMatch) {
                         const [, field, direction] = orderByMatch;
-                        filtered.sort((a: any, b: any) => {
-                          const aVal = a[field];
-                          const bVal = b[field];
-                          const comparison = aVal < bVal ? -1 : aVal > bVal ? 1 : 0;
+                        filtered.sort((a: unknown, b: unknown) => {
+                          const aRecord = a as Record<string, unknown>;
+                          const bRecord = b as Record<string, unknown>;
+                          const aVal = aRecord[field];
+                          const bVal = bRecord[field];
+                          // Convert to comparable values for sorting
+                          const aStr = String(aVal ?? '');
+                          const bStr = String(bVal ?? '');
+                          const comparison = aStr < bStr ? -1 : aStr > bStr ? 1 : 0;
                           return direction.toUpperCase() === 'DESC' ? -comparison : comparison;
                         });
                       }
@@ -139,26 +160,31 @@ vi.mock('@azure/cosmos', () => {
                       const offset = offsetMatch ? parseInt(offsetMatch[1], 10) : 0;
                       const limit = limitMatch ? parseInt(limitMatch[1], 10) : undefined;
 
-                      if (limit !== undefined) {
-                        filtered = filtered.slice(offset, offset + limit);
-                      } else if (offset > 0) {
+                      // Apply offset first
+                      if (offset > 0) {
                         filtered = filtered.slice(offset);
+                      }
+                      // Then apply limit
+                      if (limit !== undefined && limit > 0) {
+                        filtered = filtered.slice(0, limit);
                       }
 
                       // Apply SELECT field filtering
                       if (selectFields && selectFields.length > 0) {
-                        filtered = filtered.map((item: any) => {
-                          const selected: any = {};
+                        filtered = filtered.map((item: unknown) => {
+                          const itemRecord = item as Record<string, unknown>;
+                          const selected: Record<string, unknown> = {};
                           // Always include id if it exists
-                          if (item.id !== undefined) {
-                            selected.id = item.id;
+                          if (itemRecord.id !== undefined) {
+                            selected.id = itemRecord.id;
                           }
                           selectFields!.forEach(field => {
-                            if (item.hasOwnProperty(field) || item[field] !== undefined) {
-                              selected[field] = item[field];
+                            if (field in itemRecord) {
+                              selected[field] = itemRecord[field];
                             }
                           });
-                          return Object.keys(selected).length > 0 ? selected : item;
+                          // If no fields were selected (excluding id), return the original item
+                          return Object.keys(selected).length > (itemRecord.id !== undefined ? 1 : 0) ? selected : item;
                         });
                       }
                     }
@@ -169,19 +195,21 @@ vi.mock('@azure/cosmos', () => {
                       }),
                     };
                   }),
-                  item: vi.fn().mockImplementation((id: string, partitionKey: string) => {
-                    return {
-                      delete: vi.fn().mockImplementation(async () => {
-                        const index = mockDataStore[containerName].findIndex((i: any) => i.id === id);
-                        if (index >= 0) {
-                          mockDataStore[containerName].splice(index, 1);
-                        }
-                        return {};
-                      }),
-                    };
-                  }),
                 },
+                item: vi.fn().mockImplementation((id: string, partitionKey?: string) => {
+                  return {
+                    delete: vi.fn().mockImplementation(async () => {
+                      const searchId = partitionKey || id;
+                      const index = mockDataStore[containerName].findIndex((i: unknown) => (i as Record<string, unknown>).id === searchId);
+                      if (index >= 0) {
+                        mockDataStore[containerName].splice(index, 1);
+                      }
+                      return {};
+                    }),
+                  };
+                }),
               };
+              return containerMock;
             }),
             containers: {
               createIfNotExists: vi.fn().mockResolvedValue({}),
@@ -201,9 +229,9 @@ vi.mock('@azure/cosmos', () => {
 });
 
 describe('My Adapter Tests', () => {
-  beforeEach(() => {
+  beforeAll(() => {
     vi.clearAllMocks();
-    // Reset data store for each test
+    // Reset data store before all tests
     Object.keys(mockDataStore).forEach(key => delete mockDataStore[key]);
   });
 

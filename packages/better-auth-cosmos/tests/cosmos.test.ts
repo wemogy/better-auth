@@ -1,13 +1,19 @@
-import { CosmosClient, Database, Container, Items } from '@azure/cosmos';
+import { CosmosClient } from '@azure/cosmos';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { Cosmos } from '../src/cosmos';
 
 // Mock the @azure/cosmos module
-let mockCosmosClientInstance: any;
+interface MockCosmosClientInstance {
+  databases: {
+    createIfNotExists: ReturnType<typeof vi.fn>;
+  };
+}
+
+let mockCosmosClientInstance: MockCosmosClientInstance | undefined;
 
 vi.mock('@azure/cosmos', () => {
   const MockCosmosClient = class {
-    databases: any;
+    databases: MockCosmosClientInstance['databases'];
     constructor() {
       const instance = mockCosmosClientInstance || {
         databases: {
@@ -31,10 +37,28 @@ vi.mock('@azure/cosmos', () => {
 });
 
 describe('Cosmos Class', () => {
-  let mockCosmosClient: any;
-  let mockDatabase: any;
-  let mockContainer: any;
-  let mockItems: any;
+  let mockCosmosClient: MockCosmosClientInstance;
+  let mockDatabase: {
+    containers: {
+      createIfNotExists: ReturnType<typeof vi.fn>;
+    };
+    container: ReturnType<typeof vi.fn>;
+  };
+  let mockContainer: {
+    items: {
+      create: ReturnType<typeof vi.fn>;
+      upsert: ReturnType<typeof vi.fn>;
+      query: ReturnType<typeof vi.fn>;
+      item: ReturnType<typeof vi.fn>;
+    };
+    item: ReturnType<typeof vi.fn>;
+  };
+  let mockItems: {
+    create: ReturnType<typeof vi.fn>;
+    upsert: ReturnType<typeof vi.fn>;
+    query: ReturnType<typeof vi.fn>;
+    item: ReturnType<typeof vi.fn>;
+  };
 
   beforeEach(() => {
     // Setup mocks
@@ -47,9 +71,9 @@ describe('Cosmos Class', () => {
 
     mockContainer = {
       items: mockItems,
-      item: vi.fn().mockReturnValue({
+      item: vi.fn().mockImplementation((id: string, partitionKey: string) => ({
         delete: vi.fn().mockResolvedValue({}),
-      }),
+      })),
     };
 
     mockDatabase = {
@@ -85,7 +109,7 @@ describe('Cosmos Class', () => {
 
       mockDatabase.containers.createIfNotExists.mockResolvedValue({});
 
-      const cosmos = await Cosmos.create(credentials, dbName, containerNames);
+      await Cosmos.create(credentials, dbName, containerNames);
 
       expect(CosmosClient).toHaveBeenCalledWith(credentials);
       expect(mockCosmosClient.databases.createIfNotExists).toHaveBeenCalledWith({
@@ -105,7 +129,7 @@ describe('Cosmos Class', () => {
     it('should create Cosmos instance without database and containers', async () => {
       const credentials = { endpoint: 'test-endpoint', key: 'test-key' };
 
-      const cosmos = await Cosmos.create(credentials);
+      await Cosmos.create(credentials);
 
       expect(CosmosClient).toHaveBeenCalledWith(credentials);
       expect(mockCosmosClient.databases.createIfNotExists).not.toHaveBeenCalled();

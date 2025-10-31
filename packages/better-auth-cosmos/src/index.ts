@@ -1,15 +1,33 @@
 import { CosmosClientOptions } from '@azure/cosmos';
-import { createAdapterFactory } from 'better-auth/adapters';
+import { createAdapterFactory, type DBAdapterDebugLogOption } from 'better-auth/adapters';
 import { Cosmos } from './cosmos';
 import { queryBuilder } from './util/queryBuilder';
 
 interface CosmosAdapterConfig {
+  /**
+   * A unique identifier for the adapter.
+   */
   adapterId: string;
+  /**
+   * The name of the adapter.
+   */
   adapterName: string;
-  dbCredentials: CosmosClientOptions;
-  dbName: string;
-  debugLogs?: boolean | Record<string, boolean>;
+  /**
+   * Helps you debug issues with the adapter.
+   */
+  debugLogs?: DBAdapterDebugLogOption;
+  /**
+   * If the table names in the schema are plural.
+   */
   usePlural?: boolean;
+  /**
+   * Cosmos DB credentials
+   */
+  dbCredentials: CosmosClientOptions;
+  /**
+   * Database name
+   */
+  dbName: string;
 }
 
 export const buildCosmosAdapter = async (config: CosmosAdapterConfig) => {
@@ -28,9 +46,26 @@ export const buildCosmosAdapter = async (config: CosmosAdapterConfig) => {
       supportsBooleans: true,
       supportsNumericIds: false,
     },
-    adapter: () => {
+
+    adapter: ({
+      options: _options,
+      schema: _schema,
+      debugLog: _debugLog,
+      getModelName: _getModelName,
+      getFieldName: _getFieldName,
+      getFieldAttributes: _getFieldAttributes,
+    }) => {
+      // Mark parameters as intentionally unused to match Better Auth adapter signature
+      void _options;
+      void _schema;
+      void _debugLog;
+      void _getModelName;
+      void _getFieldName;
+      void _getFieldAttributes;
+
       return {
-        create: async ({ model, data }) => {
+        create: async ({ model, data, select: _select }) => {
+          void _select;
           return await cosmos.create(model, data);
         },
         update: async ({ model, where, update }) => {

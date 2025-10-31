@@ -15,7 +15,16 @@ export const queryBuilder = ({ select = ['*'], where, sortBy, offset, limit }: Q
 
   const columns = select.length === 1 && select.at(0) === '*' ? '*' : select.map(column => `c.${column}`).join(', ');
 
-  const query = `SELECT ${columns} FROM c${conditions.length ? ` WHERE ${conditions.join(' ')}` : ''}${sortBy ? ` ORDER BY c.${sortBy.field} ${sortBy.direction}` : ''}${offset !== undefined || limit !== undefined ? ` OFFSET ${offset || 0} LIMIT ${limit || 0}` : ''}`;
+  let query = `SELECT ${columns} FROM c${conditions.length ? ` WHERE ${conditions.join(' ')}` : ''}${sortBy ? ` ORDER BY c.${sortBy.field} ${sortBy.direction}` : ''}`;
+
+  // Handle pagination - only add if limit is defined and > 0, or offset is defined and > 0
+  if (offset !== undefined && offset > 0) {
+    query += ` OFFSET ${offset}`;
+  }
+  if (limit !== undefined && limit > 0) {
+    query += ` LIMIT ${limit}`;
+  }
+
   return query.trim();
 };
 
@@ -31,6 +40,9 @@ const mapCondition = (where: CleanedWhere) => {
   }
   if (where.operator === 'in' && Array.isArray(where.value)) {
     return `c.${where.field} IN (${where.value.map(v => `'${v}'`).join(', ')})`;
+  }
+  if (where.operator === 'not_in' && Array.isArray(where.value)) {
+    return `c.${where.field} NOT IN (${where.value.map(v => `'${v}'`).join(', ')})`;
   }
 
   let mappedOperator: string;
