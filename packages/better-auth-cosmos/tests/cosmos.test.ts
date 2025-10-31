@@ -18,7 +18,7 @@ vi.mock('@azure/cosmos', () => {
       return instance;
     }
   };
-  
+
   // Make it spyable
   const spyableMock = vi.fn(MockCosmosClient);
 

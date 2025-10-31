@@ -11,7 +11,7 @@ vi.mock('@azure/cosmos', () => {
     databases: any;
     constructor() {
       // Don't reset here - let beforeEach handle it
-      
+
       this.databases = {
         createIfNotExists: vi.fn().mockResolvedValue({
           database: {
@@ -19,7 +19,7 @@ vi.mock('@azure/cosmos', () => {
               if (!mockDataStore[containerName]) {
                 mockDataStore[containerName] = [];
               }
-              
+
               return {
                 items: {
                   create: vi.fn().mockImplementation(async (item: any) => {
@@ -43,7 +43,7 @@ vi.mock('@azure/cosmos', () => {
                       mockDataStore[containerName] = [];
                     }
                     let filtered = [...mockDataStore[containerName]];
-                    
+
                     // Handle both string queries and QuerySpec objects
                     let sql = '';
                     if (typeof querySpec === 'string') {
@@ -51,7 +51,7 @@ vi.mock('@azure/cosmos', () => {
                     } else if (querySpec && typeof querySpec.query === 'string') {
                       sql = querySpec.query;
                     }
-                    
+
                     if (sql) {
                       // Parse SELECT clause to determine which fields to return
                       const selectMatch = sql.match(/SELECT\s+(.+?)\s+FROM/i);
@@ -62,12 +62,12 @@ vi.mock('@azure/cosmos', () => {
                           selectFields = selectStr.split(',').map(f => f.trim().replace(/^c\./, ''));
                         }
                       }
-                      
+
                       // Parse WHERE clauses
                       const whereMatch = sql.match(/WHERE\s+(.+?)(?:\s+ORDER BY|\s+OFFSET|\s+LIMIT|$)/i);
                       if (whereMatch) {
                         const conditions = whereMatch[1];
-                        
+
                         // Process all conditions sequentially (AND by default)
                         // Parse simple equality: c.field = 'value'
                         const eqMatches = Array.from(conditions.matchAll(/c\.(\w+)\s*=\s*'([^']+)'/g));
@@ -75,14 +75,14 @@ vi.mock('@azure/cosmos', () => {
                           const [, field, value] = match;
                           filtered = filtered.filter((item: any) => String(item[field]) === String(value));
                         }
-                        
+
                         // Parse != operator
                         const neMatches = Array.from(conditions.matchAll(/c\.(\w+)\s*!=\s*'([^']+)'/g));
                         for (const match of neMatches) {
                           const [, field, value] = match;
                           filtered = filtered.filter((item: any) => String(item[field]) !== String(value));
                         }
-                        
+
                         // Parse IN clause: c.field IN ('val1', 'val2')
                         const inMatches = Array.from(conditions.matchAll(/c\.(\w+)\s+IN\s+\(([^)]+)\)/gi));
                         for (const match of inMatches) {
@@ -90,7 +90,7 @@ vi.mock('@azure/cosmos', () => {
                           const values = valuesStr.split(',').map((v: string) => v.trim().replace(/^'|'$/g, ''));
                           filtered = filtered.filter((item: any) => values.includes(String(item[field])));
                         }
-                        
+
                         // Parse NOT IN
                         const notInMatches = Array.from(conditions.matchAll(/c\.(\w+)\s+NOT\s+IN\s+\(([^)]+)\)/gi));
                         for (const match of notInMatches) {
@@ -98,35 +98,29 @@ vi.mock('@azure/cosmos', () => {
                           const values = valuesStr.split(',').map((v: string) => v.trim().replace(/^'|'$/g, ''));
                           filtered = filtered.filter((item: any) => !values.includes(String(item[field])));
                         }
-                        
+
                         // Parse CONTAINS
                         const containsMatches = Array.from(conditions.matchAll(/CONTAINS\(c\.(\w+),\s*'([^']+)'/gi));
                         for (const match of containsMatches) {
                           const [, field, value] = match;
-                          filtered = filtered.filter((item: any) => 
-                            item[field] && String(item[field]).toLowerCase().includes(value.toLowerCase())
-                          );
+                          filtered = filtered.filter((item: any) => item[field] && String(item[field]).toLowerCase().includes(value.toLowerCase()));
                         }
-                        
+
                         // Parse STARTSWITH
                         const startsWithMatches = Array.from(conditions.matchAll(/STARTSWITH\(c\.(\w+),\s*'([^']+)'/gi));
                         for (const match of startsWithMatches) {
                           const [, field, value] = match;
-                          filtered = filtered.filter((item: any) => 
-                            item[field] && String(item[field]).toLowerCase().startsWith(value.toLowerCase())
-                          );
+                          filtered = filtered.filter((item: any) => item[field] && String(item[field]).toLowerCase().startsWith(value.toLowerCase()));
                         }
-                        
+
                         // Parse ENDSWITH
                         const endsWithMatches = Array.from(conditions.matchAll(/ENDSWITH\(c\.(\w+),\s*'([^']+)'/gi));
                         for (const match of endsWithMatches) {
                           const [, field, value] = match;
-                          filtered = filtered.filter((item: any) => 
-                            item[field] && String(item[field]).toLowerCase().endsWith(value.toLowerCase())
-                          );
+                          filtered = filtered.filter((item: any) => item[field] && String(item[field]).toLowerCase().endsWith(value.toLowerCase()));
                         }
                       }
-                      
+
                       // Parse ORDER BY
                       const orderByMatch = sql.match(/ORDER BY\s+c\.(\w+)\s+(ASC|DESC)/i);
                       if (orderByMatch) {
@@ -138,19 +132,19 @@ vi.mock('@azure/cosmos', () => {
                           return direction.toUpperCase() === 'DESC' ? -comparison : comparison;
                         });
                       }
-                      
+
                       // Parse LIMIT and OFFSET (order matters - OFFSET before LIMIT in SQL)
                       const offsetMatch = sql.match(/OFFSET\s+(\d+)/i);
                       const limitMatch = sql.match(/LIMIT\s+(\d+)/i);
                       const offset = offsetMatch ? parseInt(offsetMatch[1], 10) : 0;
                       const limit = limitMatch ? parseInt(limitMatch[1], 10) : undefined;
-                      
+
                       if (limit !== undefined) {
                         filtered = filtered.slice(offset, offset + limit);
                       } else if (offset > 0) {
                         filtered = filtered.slice(offset);
                       }
-                      
+
                       // Apply SELECT field filtering
                       if (selectFields && selectFields.length > 0) {
                         filtered = filtered.map((item: any) => {
@@ -168,7 +162,7 @@ vi.mock('@azure/cosmos', () => {
                         });
                       }
                     }
-                    
+
                     return {
                       fetchAll: vi.fn().mockResolvedValue({
                         resources: filtered,
@@ -197,7 +191,7 @@ vi.mock('@azure/cosmos', () => {
       };
     }
   };
-  
+
   // Make it spyable
   const spyableMock = vi.fn(MockCosmosClient);
 
