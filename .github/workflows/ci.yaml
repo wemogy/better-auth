@@ -1,12 +1,13 @@
-name: Check code style
+name: CI Checks
 on:
   pull_request:
     branches:
       - main
+      - release
 
 jobs:
-  format:
-    name: Check code style with prettier
+  checks:
+    name: Run code style and tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -26,5 +27,8 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Run prettier
+      - name: Check code style
         run: pnpm format:check
+
+      - name: Run tests
+        run: pnpm test
