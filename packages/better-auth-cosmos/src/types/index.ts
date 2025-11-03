@@ -55,7 +55,7 @@ export interface Organization {
   name: string;
   slug: string;
   logo?: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
   createdAt: Date;
   updatedAt?: Date;
 }
