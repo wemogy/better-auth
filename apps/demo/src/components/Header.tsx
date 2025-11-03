@@ -1,10 +1,12 @@
 import { Link } from '@tanstack/react-router'
-
-import { useState } from 'react'
 import { Home, Menu, X, User, LogOut } from 'lucide-react'
-import { useAuth } from '../lib/auth-context'
+import React from 'react'
+import { useState } from 'react'
+import { useAuth } from '../lib/AuthContext'
 
-export default function Header() {
+interface IHeaderProps {}
+
+const Header: React.FC<IHeaderProps> = () => {
   const [isOpen, setIsOpen] = useState(false)
   const { user, signOut, isLoading } = useAuth()
 
@@ -13,18 +15,18 @@ export default function Header() {
       <header className="p-4 flex items-center justify-between bg-gray-800 text-white shadow-lg">
         <div className="flex items-center">
           <button
-            onClick={() => setIsOpen(true)}
-            className="p-2 hover:bg-gray-700 rounded-lg transition-colors"
             aria-label="Open menu"
+            className="p-2 hover:bg-gray-700 rounded-lg transition-colors"
+            onClick={() => setIsOpen(true)}
           >
             <Menu size={24} />
           </button>
           <h1 className="ml-4 text-xl font-semibold">
             <Link to="/">
               <img
-                src="/tanstack-word-logo-white.svg"
                 alt="TanStack Logo"
                 className="h-10"
+                src="/tanstack-word-logo-white.svg"
               />
             </Link>
           </h1>
@@ -39,8 +41,8 @@ export default function Header() {
                   <span className="text-sm">{user.email}</span>
                 </div>
                 <button
-                  onClick={signOut}
                   className="flex items-center gap-2 px-3 py-1 bg-red-600 hover:bg-red-700 rounded-lg transition-colors"
+                  onClick={signOut}
                 >
                   <LogOut size={16} />
                   <span className="text-sm">Logout</span>
@@ -48,8 +50,8 @@ export default function Header() {
               </div>
             ) : (
               <Link
-                to="/login"
                 className="flex items-center gap-2 px-3 py-1 bg-cyan-600 hover:bg-cyan-700 rounded-lg transition-colors"
+                to="/login"
               >
                 <User size={16} />
                 <span className="text-sm">Login</span>
@@ -66,9 +68,9 @@ export default function Header() {
         <div className="flex items-center justify-between p-4 border-b border-gray-700">
           <h2 className="text-xl font-bold">Navigation</h2>
           <button
-            onClick={() => setIsOpen(false)}
-            className="p-2 hover:bg-gray-800 rounded-lg transition-colors"
             aria-label="Close menu"
+            className="p-2 hover:bg-gray-800 rounded-lg transition-colors"
+            onClick={() => setIsOpen(false)}
           >
             <X size={24} />
           </button>
@@ -76,26 +78,26 @@ export default function Header() {
 
         <nav className="flex-1 p-4 overflow-y-auto">
           <Link
-            to="/"
-            onClick={() => setIsOpen(false)}
-            className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-800 transition-colors mb-2"
             activeProps={{
               className:
                 'flex items-center gap-3 p-3 rounded-lg bg-cyan-600 hover:bg-cyan-700 transition-colors mb-2',
             }}
+            className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-800 transition-colors mb-2"
+            to="/"
+            onClick={() => setIsOpen(false)}
           >
             <Home size={20} />
             <span className="font-medium">Home</span>
           </Link>
 
           <Link
-            to="/login"
-            onClick={() => setIsOpen(false)}
-            className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-800 transition-colors mb-2"
             activeProps={{
               className:
                 'flex items-center gap-3 p-3 rounded-lg bg-cyan-600 hover:bg-cyan-700 transition-colors mb-2',
             }}
+            className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-800 transition-colors mb-2"
+            to="/login"
+            onClick={() => setIsOpen(false)}
           >
             <User size={20} />
             <span className="font-medium">Login</span>
@@ -109,3 +111,5 @@ export default function Header() {
     </>
   )
 }
+
+export default Header

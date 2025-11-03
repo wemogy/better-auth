@@ -23,8 +23,9 @@ Maintained by **wemogy**.
 
 ## Requirements
 
-- Node.js 18 or later
+- Node.js 20 or later
 - Access to an Azure Cosmos DB account with permission to manage databases and containers
+- better-auth ^1.3.33 or later
 - An existing better-auth configuration
 
 ## Installation
@@ -98,10 +99,10 @@ Collections are created automatically if they do not exist. You can override the
 We welcome improvements and bug fixes. To contribute:
 
 1. Fork the repository and create a branch.
-2. Install dependencies with `pnpm install`.
-3. Run the tests via `pnpm test`. For integration tests, provide a Cosmos DB instance.
+2. Install dependencies with `pnpm install` from the root.
+3. Run the tests via `npm test` in the `packages/better-auth-cosmos` directory. For integration tests, provide a Cosmos DB instance.
 4. Submit a pull request describing your changes.
 
 ## License
 
-MIT © wemogy
+UNLICENSED © wemogy

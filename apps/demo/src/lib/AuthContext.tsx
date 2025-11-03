@@ -5,10 +5,16 @@ import {
   useState,
   type ReactNode,
 } from 'react'
-import { authClient } from './auth-client'
+import { authClient } from './authClient'
+
+type User = {
+  id: string
+  email: string
+  name?: string
+}
 
 interface AuthContextType {
-  user: any
+  user: User | null
   isLoading: boolean
   signIn: (email: string, password: string) => Promise<any>
   signUp: (email: string, password: string, name?: string) => Promise<any>
@@ -18,7 +24,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | null>(null)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<any>(null)
+  const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
@@ -27,8 +33,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         const session = await authClient.getSession()
         setUser(session?.data?.user || null)
-      } catch (error) {
-        console.error('Auth check failed:', error)
+      } catch {
+        // Auth check failed, but continue
       } finally {
         setIsLoading(false)
       }
@@ -51,8 +57,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(result.data.user)
       }
       return result
-    } catch (error: any) {
-      console.error('Sign in failed:', error)
+    } catch (error: unknown) {
+      // Sign in failed
 
       // Verbesserte Fehlermeldungen
       let errorMessage =
@@ -81,7 +87,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setUser(session.data.user)
           return session
         }
-      } catch {}
+      } catch {
+        // Ignore
+      }
 
       throw new Error(errorMessage)
     }
@@ -98,8 +106,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(result.data.user)
       }
       return result
-    } catch (error: any) {
-      console.error('Sign up failed:', error)
+    } catch (error: unknown) {
+      // Sign up failed
 
       // Verbesserte Fehlermeldungen für Registrierung
       let errorMessage =
@@ -122,13 +130,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const signOut = async () => {
-    try {
-      await authClient.signOut()
-      setUser(null)
-    } catch (error) {
-      console.error('Sign out failed:', error)
-      throw error
-    }
+    await authClient.signOut()
+    setUser(null)
   }
 
   const value = {

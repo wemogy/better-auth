@@ -5,4 +5,10 @@ export default defineConfig([
   {
     extends: [baseConfig],
   },
+  {
+    files: ['src/routes/**/*'],
+    rules: {
+      'react-naming-convention/filename': 'off',
+    },
+  },
 ])

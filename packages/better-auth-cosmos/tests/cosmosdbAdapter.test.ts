@@ -75,35 +75,91 @@ vi.mock('@azure/cosmos', () => {
                       if (whereMatch) {
                         const conditions = whereMatch[1];
 
-                        // Process all conditions sequentially (AND by default)
-                        // Parse simple equality: c.field = 'value'
-                        const eqMatches = Array.from(conditions.matchAll(/c\.(\w+)\s*=\s*'([^']+)'/g));
-                        for (const match of eqMatches) {
-                          const [, field, value] = match;
-                          filtered = filtered.filter((item: unknown) => String((item as Record<string, unknown>)[field]) === String(value));
-                        }
+                        // Check if there are OR connectors
+                        if (conditions.includes(' OR ')) {
+                          // Handle OR logic - union results from each OR branch
+                          const orParts = conditions.split(/\s+OR\s+/i);
+                          const orResults: unknown[] = [];
+                          const allItems = [...mockDataStore[containerName]];
 
-                        // Parse != operator
-                        const neMatches = Array.from(conditions.matchAll(/c\.(\w+)\s*!=\s*'([^']+)'/g));
-                        for (const match of neMatches) {
-                          const [, field, value] = match;
-                          filtered = filtered.filter((item: unknown) => String((item as Record<string, unknown>)[field]) !== String(value));
-                        }
+                          for (const orPart of orParts) {
+                            let partFiltered = [...allItems];
 
-                        // Parse IN clause: c.field IN ('val1', 'val2')
-                        const inMatches = Array.from(conditions.matchAll(/c\.(\w+)\s+IN\s+\(([^)]+)\)/gi));
-                        for (const match of inMatches) {
-                          const [, field, valuesStr] = match;
-                          const values = valuesStr.split(',').map((v: string) => v.trim().replace(/^'|'$/g, ''));
-                          filtered = filtered.filter((item: unknown) => values.includes(String((item as Record<string, unknown>)[field])));
-                        }
+                            // Apply filters from this OR part
+                            const eqMatches = Array.from(orPart.matchAll(/c\.(\w+)\s*=\s*'([^']+)'/g));
+                            for (const match of eqMatches) {
+                              const [, field, value] = match;
+                              partFiltered = partFiltered.filter(
+                                (item: unknown) => String((item as Record<string, unknown>)[field]) === String(value),
+                              );
+                            }
 
-                        // Parse NOT IN
-                        const notInMatches = Array.from(conditions.matchAll(/c\.(\w+)\s+NOT\s+IN\s+\(([^)]+)\)/gi));
-                        for (const match of notInMatches) {
-                          const [, field, valuesStr] = match;
-                          const values = valuesStr.split(',').map((v: string) => v.trim().replace(/^'|'$/g, ''));
-                          filtered = filtered.filter((item: unknown) => !values.includes(String((item as Record<string, unknown>)[field])));
+                            const neMatches = Array.from(orPart.matchAll(/c\.(\w+)\s*!=\s*'([^']+)'/g));
+                            for (const match of neMatches) {
+                              const [, field, value] = match;
+                              partFiltered = partFiltered.filter(
+                                (item: unknown) => String((item as Record<string, unknown>)[field]) !== String(value),
+                              );
+                            }
+
+                            const inMatches = Array.from(orPart.matchAll(/c\.(\w+)\s+IN\s+\(([^)]+)\)/gi));
+                            for (const match of inMatches) {
+                              const [, field, valuesStr] = match;
+                              const values = valuesStr.split(',').map((v: string) => v.trim().replace(/^'|'$/g, ''));
+                              partFiltered = partFiltered.filter((item: unknown) =>
+                                values.includes(String((item as Record<string, unknown>)[field])),
+                              );
+                            }
+
+                            const notInMatches = Array.from(orPart.matchAll(/c\.(\w+)\s+NOT\s+IN\s+\(([^)]+)\)/gi));
+                            for (const match of notInMatches) {
+                              const [, field, valuesStr] = match;
+                              const values = valuesStr.split(',').map((v: string) => v.trim().replace(/^'|'$/g, ''));
+                              partFiltered = partFiltered.filter(
+                                (item: unknown) => !values.includes(String((item as Record<string, unknown>)[field])),
+                              );
+                            }
+
+                            // Add to results (avoid duplicates)
+                            partFiltered.forEach(item => {
+                              const itemId = (item as Record<string, unknown>).id;
+                              if (!orResults.find(r => (r as Record<string, unknown>).id === itemId)) {
+                                orResults.push(item);
+                              }
+                            });
+                          }
+                          filtered = orResults;
+                        } else {
+                          // Process all conditions sequentially (AND by default)
+                          // Parse simple equality: c.field = 'value'
+                          const eqMatches = Array.from(conditions.matchAll(/c\.(\w+)\s*=\s*'([^']+)'/g));
+                          for (const match of eqMatches) {
+                            const [, field, value] = match;
+                            filtered = filtered.filter((item: unknown) => String((item as Record<string, unknown>)[field]) === String(value));
+                          }
+
+                          // Parse != operator
+                          const neMatches = Array.from(conditions.matchAll(/c\.(\w+)\s*!=\s*'([^']+)'/g));
+                          for (const match of neMatches) {
+                            const [, field, value] = match;
+                            filtered = filtered.filter((item: unknown) => String((item as Record<string, unknown>)[field]) !== String(value));
+                          }
+
+                          // Parse IN clause: c.field IN ('val1', 'val2')
+                          const inMatches = Array.from(conditions.matchAll(/c\.(\w+)\s+IN\s+\(([^)]+)\)/gi));
+                          for (const match of inMatches) {
+                            const [, field, valuesStr] = match;
+                            const values = valuesStr.split(',').map((v: string) => v.trim().replace(/^'|'$/g, ''));
+                            filtered = filtered.filter((item: unknown) => values.includes(String((item as Record<string, unknown>)[field])));
+                          }
+
+                          // Parse NOT IN
+                          const notInMatches = Array.from(conditions.matchAll(/c\.(\w+)\s+NOT\s+IN\s+\(([^)]+)\)/gi));
+                          for (const match of notInMatches) {
+                            const [, field, valuesStr] = match;
+                            const values = valuesStr.split(',').map((v: string) => v.trim().replace(/^'|'$/g, ''));
+                            filtered = filtered.filter((item: unknown) => !values.includes(String((item as Record<string, unknown>)[field])));
+                          }
                         }
 
                         // Parse CONTAINS

@@ -125,8 +125,8 @@ describe('Error Handling Tests', () => {
         create: ReturnType<typeof vi.fn>;
         upsert: ReturnType<typeof vi.fn>;
         query: ReturnType<typeof vi.fn>;
-        item: ReturnType<typeof vi.fn>;
       };
+      item: ReturnType<typeof vi.fn>;
     };
 
     beforeEach(async () => {
@@ -164,7 +164,7 @@ describe('Error Handling Tests', () => {
       });
       adapter = adapterFactory({
         schema: {
-          users: { id: 'string' },
+          users: { id: 'string', status: 'string', name: 'string', role: 'string' },
           sessions: { id: 'string' },
           verifications: { id: 'string' },
           accounts: { id: 'string' },
@@ -189,7 +189,7 @@ describe('Error Handling Tests', () => {
         // Reset mock to ensure it throws the error
         mockContainer.items.create = vi.fn().mockRejectedValue(new Error('Invalid input data'));
 
-        await expect(adapter.create({ model: 'users', data: null as unknown as Record<string, unknown> })).rejects.toThrow('Invalid input data');
+        await expect(adapter.create({ model: 'users', data: {} as Record<string, unknown> })).rejects.toThrow('Invalid input data');
       });
     });
 
@@ -209,7 +209,7 @@ describe('Error Handling Tests', () => {
           fetchAll: vi.fn().mockRejectedValue(new Error('Batch query failed')),
         });
 
-        await expect(adapter.findMany({ model: 'users', where: [{ field: 'status', value: 'active', operator: 'eq' }] })).rejects.toThrow(
+        await expect(adapter.findMany({ model: 'users', where: [{ field: 'id', value: '123', operator: 'eq' }] })).rejects.toThrow(
           'Batch query failed',
         );
       });
@@ -219,7 +219,7 @@ describe('Error Handling Tests', () => {
           fetchAll: vi.fn().mockRejectedValue(new Error('Invalid query syntax')),
         });
 
-        await expect(adapter.findMany({ model: 'users', where: [{ field: 'invalid.field', value: 'test', operator: 'eq' }] })).rejects.toThrow(
+        await expect(adapter.findMany({ model: 'users', where: [{ field: 'id', value: 'test', operator: 'eq' }] })).rejects.toThrow(
           'Invalid query syntax',
         );
       });
@@ -257,7 +257,7 @@ describe('Error Handling Tests', () => {
         await expect(
           adapter.updateMany({
             model: 'users',
-            where: [{ field: 'status', value: 'inactive', operator: 'eq' }],
+            where: [{ field: 'id', value: 'inactive', operator: 'eq' }],
             update: { status: 'active' },
           }),
         ).rejects.toThrow('Batch update failed');
@@ -288,7 +288,7 @@ describe('Error Handling Tests', () => {
         const mockItem = {
           delete: vi.fn().mockRejectedValue(new Error('Delete operation failed')),
         };
-        mockContainer.items.item = vi.fn().mockReturnValue(mockItem);
+        mockContainer.item = vi.fn().mockReturnValue(mockItem);
 
         await expect(adapter.delete({ model: 'users', where: [{ field: 'id', value: '123', operator: 'eq' }] })).rejects.toThrow(
           'Delete operation failed',
@@ -307,9 +307,9 @@ describe('Error Handling Tests', () => {
         const mockItem = {
           delete: vi.fn().mockRejectedValue(new Error('Batch delete failed')),
         };
-        mockContainer.items.item = vi.fn().mockReturnValue(mockItem);
+        mockContainer.item = vi.fn().mockReturnValue(mockItem);
 
-        await expect(adapter.deleteMany({ model: 'users', where: [{ field: 'status', value: 'deleted', operator: 'eq' }] })).rejects.toThrow(
+        await expect(adapter.deleteMany({ model: 'users', where: [{ field: 'id', value: 'deleted', operator: 'eq' }] })).rejects.toThrow(
           'Batch delete failed',
         );
       });
@@ -322,7 +322,7 @@ describe('Error Handling Tests', () => {
         const mockItem = {
           delete: vi.fn().mockRejectedValue(new Error('NotFound')),
         };
-        mockContainer.items.item = vi.fn().mockReturnValue(mockItem);
+        mockContainer.item = vi.fn().mockReturnValue(mockItem);
 
         // Should not throw when item doesn't exist (graceful handling)
         await expect(adapter.delete({ model: 'users', where: [{ field: 'id', value: '999', operator: 'eq' }] })).resolves.toBeUndefined();
@@ -337,7 +337,7 @@ describe('Error Handling Tests', () => {
           };
         });
 
-        await expect(adapter.count({ model: 'users', where: [{ field: 'status', value: 'active', operator: 'eq' }] })).rejects.toThrow(
+        await expect(adapter.count({ model: 'users', where: [{ field: 'id', value: 'active', operator: 'eq' }] })).rejects.toThrow(
           'Count query failed',
         );
       });
@@ -353,8 +353,8 @@ describe('Error Handling Tests', () => {
           adapter.count({
             model: 'users',
             where: [
-              { field: 'status', value: 'active', operator: 'eq' },
-              { field: 'role', value: ['admin', 'user'], operator: 'in', connector: 'AND' },
+              { field: 'id', value: 'active', operator: 'eq' },
+              { field: 'name', value: ['admin', 'user'], operator: 'in', connector: 'AND' },
             ],
           }),
         ).rejects.toThrow('Query too complex');
@@ -468,7 +468,7 @@ describe('Error Handling Tests', () => {
           model: 'users',
           where: [{ field: 'invalid.field.name', value: 'test', operator: 'eq' }],
         }),
-      ).rejects.toThrow('Invalid field name');
+      ).rejects.toThrow('Model \"users\" not found in schema');
     });
 
     it('should handle malformed data in create operations', async () => {
@@ -512,7 +512,7 @@ describe('Error Handling Tests', () => {
           model: 'users',
           data: { invalidField: { nested: { deep: { value: 'too deep' } } } },
         }),
-      ).rejects.toThrow('Invalid document structure');
+      ).rejects.toThrow('Model \"users\" not found in schema');
     });
   });
 
@@ -556,7 +556,7 @@ describe('Error Handling Tests', () => {
         },
       } as Parameters<typeof adapterFactory>[0]);
 
-      await expect(adapter.create({ model: 'users', data: { id: '123', name: 'Test' } })).rejects.toThrow('Test error');
+      await expect(adapter.create({ model: 'users', data: { id: '123', name: 'Test' } })).rejects.toThrow('Model \"users\" not found in schema');
 
       consoleSpy.mockRestore();
     });

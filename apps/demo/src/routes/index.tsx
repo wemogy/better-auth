@@ -51,24 +51,24 @@ function App() {
           <a
             className="text-[#61dafb] hover:underline"
             href="https://reactjs.org"
-            target="_blank"
             rel="noopener noreferrer"
+            target="_blank"
           >
             Learn React
           </a>
           <a
             className="text-[#61dafb] hover:underline"
             href="https://tanstack.com"
-            target="_blank"
             rel="noopener noreferrer"
+            target="_blank"
           >
             Learn TanStack
           </a>
           <a
             className="text-[#61dafb] hover:underline"
             href="https://better-auth.com"
-            target="_blank"
             rel="noopener noreferrer"
+            target="_blank"
           >
             Learn Better Auth
           </a>

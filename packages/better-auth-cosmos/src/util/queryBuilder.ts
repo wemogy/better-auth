@@ -17,12 +17,13 @@ export const queryBuilder = ({ select = ['*'], where, sortBy, offset, limit }: Q
 
   let query = `SELECT ${columns} FROM c${conditions.length ? ` WHERE ${conditions.join(' ')}` : ''}${sortBy ? ` ORDER BY c.${sortBy.field} ${sortBy.direction}` : ''}`;
 
-  // Handle pagination - only add if limit is defined and > 0, or offset is defined and > 0
-  if (offset !== undefined && offset > 0) {
-    query += ` OFFSET ${offset}`;
-  }
-  if (limit !== undefined && limit > 0) {
-    query += ` LIMIT ${limit}`;
+  // Handle pagination
+  // If limit is provided, always include OFFSET (default 0) and LIMIT
+  // If only offset is provided, include OFFSET and LIMIT 0
+  if (limit !== undefined) {
+    query += ` OFFSET ${offset ?? 0} LIMIT ${limit}`;
+  } else if (offset !== undefined && offset > 0) {
+    query += ` OFFSET ${offset} LIMIT 0`;
   }
 
   return query.trim();
