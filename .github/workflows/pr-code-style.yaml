@@ -51,4 +51,20 @@ jobs:
           packages-token: ${{ secrets.WEMOGY_PACKAGES_TOKEN }}
 
       - name: Run tsc
-        run: pnpm typecheck
+        run: pnpm typecheck:check
+
+  test:
+    name: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: ./.github/actions/setup-node
+        with:
+          packages-token: ${{ secrets.WEMOGY_PACKAGES_TOKEN }}
+
+      - name: Run tests
+        run: pnpm test
