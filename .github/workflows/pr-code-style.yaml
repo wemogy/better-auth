@@ -51,7 +51,7 @@ jobs:
           packages-token: ${{ secrets.WEMOGY_PACKAGES_TOKEN }}
 
       - name: Run tsc
-        run: pnpm typecheck:check
+        run: pnpm typecheck
 
   test:
     name: test
