@@ -191,13 +191,15 @@ describe('Error Handling Tests', () => {
       it('should handle create operation failure', async () => {
         mockContainer.items.create.mockRejectedValue(new Error('Create operation failed'));
 
-        await expect(adapter.create({ model: 'users', data: { id: '123', name: 'Test' } })).rejects.toThrow('Create operation failed');
+        await expect(adapter.create({ model: 'users', data: { id: '123', name: 'Test' }, forceAllowId: true })).rejects.toThrow(
+          'Create operation failed',
+        );
       });
 
       it('should handle network timeout during create', async () => {
         mockContainer.items.create.mockRejectedValue(new Error('ETIMEDOUT'));
 
-        await expect(adapter.create({ model: 'users', data: { id: '123', name: 'Test' } })).rejects.toThrow('ETIMEDOUT');
+        await expect(adapter.create({ model: 'users', data: { id: '123', name: 'Test' }, forceAllowId: true })).rejects.toThrow('ETIMEDOUT');
       });
 
       it('should handle invalid data format during create', async () => {
