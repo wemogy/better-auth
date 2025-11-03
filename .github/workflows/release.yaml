@@ -49,11 +49,17 @@ jobs:
           node-version-file: package.json
           registry-url: https://npm.pkg.github.com/
 
-      - name: Update package version
-        run: pnpm -r exec pnpm version ${{ needs.get-version.outputs.next-version }} --no-git-tag-version --allow-same-version
+      - name: Install dependencies
+        run: pnpm install
 
-      - name: Publish NPM packages
-        run: pnpm publish --no-git-checks -r
+      - name: Build package
+        run: pnpm --filter @wemogy/better-auth-cosmos build
+
+      - name: Update package version
+        run: pnpm --filter @wemogy/better-auth-cosmos exec pnpm version ${{ needs.get-version.outputs.next-version }} --no-git-tag-version --allow-same-version
+
+      - name: Publish NPM package
+        run: pnpm --filter @wemogy/better-auth-cosmos publish --no-git-checks
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
