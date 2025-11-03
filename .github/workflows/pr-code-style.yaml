@@ -1,0 +1,54 @@
+name: Check code style
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  format:
+    name: prettier
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: ./.github/actions/setup-node
+        with:
+          packages-token: ${{ secrets.WEMOGY_PACKAGES_TOKEN }}
+
+      - name: Run prettier
+        run: pnpm format:check
+
+  lint:
+    name: eslint
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: ./.github/actions/setup-node
+        with:
+          packages-token: ${{ secrets.WEMOGY_PACKAGES_TOKEN }}
+
+      - name: Run eslint
+        run: pnpm lint:check
+
+  typecheck:
+    name: typecheck
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: ./.github/actions/setup-node
+        with:
+          packages-token: ${{ secrets.WEMOGY_PACKAGES_TOKEN }}
+
+      - name: Run tsc
+        run: pnpm typecheck
