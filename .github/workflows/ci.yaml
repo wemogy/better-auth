@@ -24,16 +24,11 @@ jobs:
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
           registry-url: https://npm.pkg.github.com/
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-      - name: Configure npmrc for GitHub Packages
-        run: |
-          echo "//npm.pkg.github.com/:_authToken=${{ secrets.NPM_TOKEN }}" >> .npmrc
-          echo "@wemogy:registry=https://npm.pkg.github.com" >> .npmrc
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Check code style
         run: pnpm format:check

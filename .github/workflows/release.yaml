@@ -48,16 +48,11 @@ jobs:
         with:
           node-version-file: package.json
           registry-url: https://npm.pkg.github.com/
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-      - name: Configure npmrc for GitHub Packages
-        run: |
-          echo "//npm.pkg.github.com/:_authToken=${{ secrets.NPM_TOKEN }}" >> .npmrc
-          echo "@wemogy:registry=https://npm.pkg.github.com" >> .npmrc
 
       - name: Install dependencies
         run: pnpm install
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Build package
         run: pnpm --filter @wemogy/better-auth-cosmos build
