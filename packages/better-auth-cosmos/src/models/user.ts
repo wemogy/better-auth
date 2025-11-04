@@ -4,6 +4,7 @@ export interface User {
   name?: string;
   image?: string;
   emailVerified: boolean;
+  twoFactorEnabled?: boolean;
   createdAt: Date;
   updatedAt: Date;
 }

@@ -13,6 +13,7 @@ type User = {
   name?: string
 }
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
 interface AuthContextType {
   user: User | null
   isLoading: boolean
@@ -20,6 +21,7 @@ interface AuthContextType {
   signUp: (email: string, password: string, name?: string) => Promise<any>
   signOut: () => Promise<any>
 }
+/* eslint-enable @typescript-eslint/no-explicit-any */
 
 const AuthContext = createContext<AuthContextType | null>(null)
 
@@ -64,20 +66,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       let errorMessage =
         'Anmeldung fehlgeschlagen. Bitte überprüfen Sie Ihre Eingaben.'
 
-      if (error?.code === 'INVALID_EMAIL_OR_PASSWORD') {
+      const err = error as any
+      if (err?.code === 'INVALID_EMAIL_OR_PASSWORD') {
         errorMessage =
           'Ungültige E-Mail oder Passwort. Bitte versuchen Sie es erneut.'
-      } else if (error?.code === 'USER_NOT_FOUND') {
+      } else if (err?.code === 'USER_NOT_FOUND') {
         errorMessage =
           'Benutzer nicht gefunden. Bitte registrieren Sie sich zuerst.'
       } else if (
-        error?.message?.includes('400') ||
-        error?.message?.includes('Bad Request')
+        err?.message?.includes('400') ||
+        err?.message?.includes('Bad Request')
       ) {
         errorMessage =
           'Ungültige Anmeldedaten. Bitte überprüfen Sie E-Mail und Passwort.'
-      } else if (error?.message) {
-        errorMessage = error.message
+      } else if (err?.message) {
+        errorMessage = err.message
       }
 
       // Gracefully handle common 400 cases (e.g., already signed in)
@@ -113,16 +116,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       let errorMessage =
         'Registrierung fehlgeschlagen. Bitte versuchen Sie es später erneut.'
 
-      if (error?.code === 'USER_ALREADY_EXISTS') {
+      const err = error as any
+      if (err?.code === 'USER_ALREADY_EXISTS') {
         errorMessage =
           'Diese E-Mail ist bereits registriert. Bitte melden Sie sich an.'
-      } else if (error?.code === 'INVALID_EMAIL') {
+      } else if (err?.code === 'INVALID_EMAIL') {
         errorMessage = 'Bitte geben Sie eine gültige E-Mail-Adresse ein.'
-      } else if (error?.code === 'WEAK_PASSWORD') {
+      } else if (err?.code === 'WEAK_PASSWORD') {
         errorMessage =
           'Das Passwort ist zu schwach. Bitte wählen Sie ein sichereres Passwort.'
-      } else if (error?.message) {
-        errorMessage = error.message
+      } else if (err?.message) {
+        errorMessage = err.message
       }
 
       throw new Error(errorMessage)

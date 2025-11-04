@@ -12,24 +12,16 @@ interface MockCosmosClientInstance {
 let mockCosmosClientInstance: MockCosmosClientInstance | undefined;
 
 vi.mock('@azure/cosmos', () => {
-  const MockCosmosClient = class {
-    databases: MockCosmosClientInstance['databases'];
-    constructor() {
+  return {
+    CosmosClient: vi.fn().mockImplementation(function () {
       const instance = mockCosmosClientInstance || {
         databases: {
           createIfNotExists: vi.fn(),
         },
       };
       Object.assign(this, instance);
-      return instance;
-    }
-  };
-
-  // Make it spyable
-  const spyableMock = vi.fn(MockCosmosClient);
-
-  return {
-    CosmosClient: spyableMock,
+      return this;
+    }),
   };
 });
 
@@ -164,10 +156,25 @@ describe('Error Handling Tests', () => {
       });
       adapter = adapterFactory({
         schema: {
-          users: { id: 'string', status: 'string', name: 'string', role: 'string' },
-          sessions: { id: 'string' },
+          users: { id: 'string', status: 'string', name: 'string', role: 'string', twoFactorEnabled: 'boolean' },
+          sessions: { id: 'string', activeOrganizationId: 'string', activeTeamId: 'string' },
           verifications: { id: 'string' },
           accounts: { id: 'string' },
+          organizations: { id: 'string', name: 'string', slug: 'string', logo: 'string', metadata: 'string', createdAt: 'date', updatedAt: 'date' },
+          members: { id: 'string', userId: 'string', organizationId: 'string', role: 'string', createdAt: 'date', updatedAt: 'date' },
+          teams: { id: 'string', name: 'string', organizationId: 'string', createdAt: 'date', updatedAt: 'date' },
+          invitations: {
+            id: 'string',
+            email: 'string',
+            inviterId: 'string',
+            organizationId: 'string',
+            role: 'string',
+            status: 'string',
+            expiresAt: 'date',
+            teamId: 'string',
+          },
+          teamMembers: { id: 'string', teamId: 'string', userId: 'string', createdAt: 'date' },
+          twoFactor: { id: 'string', userId: 'string', secret: 'string', backupCodes: 'string' },
         },
       } as Parameters<typeof adapterFactory>[0]);
     });
@@ -176,13 +183,15 @@ describe('Error Handling Tests', () => {
       it('should handle create operation failure', async () => {
         mockContainer.items.create.mockRejectedValue(new Error('Create operation failed'));
 
-        await expect(adapter.create({ model: 'users', data: { id: '123', name: 'Test' } })).rejects.toThrow('Create operation failed');
+        await expect(adapter.create({ model: 'users', data: { id: '123', name: 'Test' }, forceAllowId: true })).rejects.toThrow(
+          'Create operation failed',
+        );
       });
 
       it('should handle network timeout during create', async () => {
         mockContainer.items.create.mockRejectedValue(new Error('ETIMEDOUT'));
 
-        await expect(adapter.create({ model: 'users', data: { id: '123', name: 'Test' } })).rejects.toThrow('ETIMEDOUT');
+        await expect(adapter.create({ model: 'users', data: { id: '123', name: 'Test' }, forceAllowId: true })).rejects.toThrow('ETIMEDOUT');
       });
 
       it('should handle invalid data format during create', async () => {
@@ -456,10 +465,25 @@ describe('Error Handling Tests', () => {
       });
       const adapter = adapterFactory({
         schema: {
-          users: { id: 'string' },
-          sessions: { id: 'string' },
+          users: { id: 'string', twoFactorEnabled: 'boolean' },
+          sessions: { id: 'string', activeOrganizationId: 'string', activeTeamId: 'string' },
           verifications: { id: 'string' },
           accounts: { id: 'string' },
+          organizations: { id: 'string', name: 'string', slug: 'string', logo: 'string', metadata: 'string', createdAt: 'date', updatedAt: 'date' },
+          members: { id: 'string', userId: 'string', organizationId: 'string', role: 'string', createdAt: 'date', updatedAt: 'date' },
+          teams: { id: 'string', name: 'string', organizationId: 'string', createdAt: 'date', updatedAt: 'date' },
+          invitations: {
+            id: 'string',
+            email: 'string',
+            inviterId: 'string',
+            organizationId: 'string',
+            role: 'string',
+            status: 'string',
+            expiresAt: 'date',
+            teamId: 'string',
+          },
+          teamMembers: { id: 'string', teamId: 'string', userId: 'string', createdAt: 'date' },
+          twoFactor: { id: 'string', userId: 'string', secret: 'string', backupCodes: 'string' },
         },
       } as Parameters<typeof adapterFactory>[0]);
 
@@ -500,10 +524,25 @@ describe('Error Handling Tests', () => {
       });
       const adapter = adapterFactory({
         schema: {
-          users: { id: 'string' },
-          sessions: { id: 'string' },
+          users: { id: 'string', twoFactorEnabled: 'boolean' },
+          sessions: { id: 'string', activeOrganizationId: 'string', activeTeamId: 'string' },
           verifications: { id: 'string' },
           accounts: { id: 'string' },
+          organizations: { id: 'string', name: 'string', slug: 'string', logo: 'string', metadata: 'string', createdAt: 'date', updatedAt: 'date' },
+          members: { id: 'string', userId: 'string', organizationId: 'string', role: 'string', createdAt: 'date', updatedAt: 'date' },
+          teams: { id: 'string', name: 'string', organizationId: 'string', createdAt: 'date', updatedAt: 'date' },
+          invitations: {
+            id: 'string',
+            email: 'string',
+            inviterId: 'string',
+            organizationId: 'string',
+            role: 'string',
+            status: 'string',
+            expiresAt: 'date',
+            teamId: 'string',
+          },
+          teamMembers: { id: 'string', teamId: 'string', userId: 'string', createdAt: 'date' },
+          twoFactor: { id: 'string', userId: 'string', secret: 'string', backupCodes: 'string' },
         },
       } as Parameters<typeof adapterFactory>[0]);
 
@@ -549,10 +588,25 @@ describe('Error Handling Tests', () => {
       });
       const adapter = adapterFactory({
         schema: {
-          users: { id: 'string' },
-          sessions: { id: 'string' },
+          users: { id: 'string', twoFactorEnabled: 'boolean' },
+          sessions: { id: 'string', activeOrganizationId: 'string', activeTeamId: 'string' },
           verifications: { id: 'string' },
           accounts: { id: 'string' },
+          organizations: { id: 'string', name: 'string', slug: 'string', logo: 'string', metadata: 'string', createdAt: 'date', updatedAt: 'date' },
+          members: { id: 'string', userId: 'string', organizationId: 'string', role: 'string', createdAt: 'date', updatedAt: 'date' },
+          teams: { id: 'string', name: 'string', organizationId: 'string', createdAt: 'date', updatedAt: 'date' },
+          invitations: {
+            id: 'string',
+            email: 'string',
+            inviterId: 'string',
+            organizationId: 'string',
+            role: 'string',
+            status: 'string',
+            expiresAt: 'date',
+            teamId: 'string',
+          },
+          teamMembers: { id: 'string', teamId: 'string', userId: 'string', createdAt: 'date' },
+          twoFactor: { id: 'string', userId: 'string', secret: 'string', backupCodes: 'string' },
         },
       } as Parameters<typeof adapterFactory>[0]);
 

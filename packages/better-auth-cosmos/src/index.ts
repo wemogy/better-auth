@@ -33,7 +33,18 @@ interface CosmosAdapterConfig {
 export const buildCosmosAdapter = async (config: CosmosAdapterConfig) => {
   const { adapterId, adapterName, dbCredentials, dbName, debugLogs = false, usePlural = false } = config;
 
-  const cosmos = await Cosmos.create(dbCredentials, dbName, ['users', 'sessions', 'verifications', 'accounts']);
+  const cosmos = await Cosmos.create(dbCredentials, dbName, [
+    'users',
+    'sessions',
+    'verifications',
+    'accounts',
+    'organizations',
+    'members',
+    'teams',
+    'invitations',
+    'teamMembers',
+    'twoFactor',
+  ]);
 
   return createAdapterFactory({
     config: {

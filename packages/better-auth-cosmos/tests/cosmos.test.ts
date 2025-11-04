@@ -12,24 +12,16 @@ interface MockCosmosClientInstance {
 let mockCosmosClientInstance: MockCosmosClientInstance | undefined;
 
 vi.mock('@azure/cosmos', () => {
-  const MockCosmosClient = class {
-    databases: MockCosmosClientInstance['databases'];
-    constructor() {
+  return {
+    CosmosClient: vi.fn().mockImplementation(function () {
       const instance = mockCosmosClientInstance || {
         databases: {
           createIfNotExists: vi.fn(),
         },
       };
       Object.assign(this, instance);
-      return instance;
-    }
-  };
-
-  // Make it spyable
-  const spyableMock = vi.fn(MockCosmosClient);
-
-  return {
-    CosmosClient: spyableMock,
+      return this;
+    }),
     Database: class {},
     Container: class {},
     Items: class {},

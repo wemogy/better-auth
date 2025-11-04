@@ -9,6 +9,7 @@ export interface User {
   name?: string;
   image?: string;
   emailVerified: boolean;
+  twoFactorEnabled?: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -20,6 +21,8 @@ export interface Session {
   token: string;
   ipAddress?: string;
   userAgent?: string;
+  activeOrganizationId?: string;
+  activeTeamId?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -45,4 +48,56 @@ export interface VerificationToken {
   token: string;
   expiresAt: Date;
   createdAt: Date;
+}
+
+export interface Organization {
+  id: string;
+  name: string;
+  slug: string;
+  logo?: string;
+  metadata?: Record<string, unknown>;
+  createdAt: Date;
+  updatedAt?: Date;
+}
+
+export interface Member {
+  id: string;
+  userId: string;
+  organizationId: string;
+  role: string;
+  createdAt: Date;
+  updatedAt?: Date;
+}
+
+export interface Invitation {
+  id: string;
+  email: string;
+  inviterId: string;
+  organizationId: string;
+  role: string;
+  status: string;
+  expiresAt: Date;
+  teamId?: string;
+}
+
+export interface Team {
+  id: string;
+  name: string;
+  organizationId: string;
+  createdAt: Date;
+  updatedAt?: Date;
+}
+
+export interface TeamMember {
+  id: string;
+  teamId: string;
+  userId: string;
+  createdAt: Date;
+}
+
+export interface TwoFactor {
+  id: string;
+  userId: string;
+  secret?: string;
+  backupCodes?: string;
 }

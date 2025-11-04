@@ -5,6 +5,8 @@ export interface Session {
   token: string;
   ipAddress?: string;
   userAgent?: string;
+  activeOrganizationId?: string;
+  activeTeamId?: string;
   createdAt: Date;
   updatedAt: Date;
 }
