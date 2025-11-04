@@ -39,7 +39,7 @@ The AuthProvider requires an authClient prop - you must create and pass your own
 import { useUser } from '@wemogy/better-auth-react'
 
 function App() {
-  const { user, isLoading } = useUser('http://localhost:3001')
+  const { user, isLoading } = useUser()
 
   if (isLoading) return <div>Loading...</div>
 
@@ -53,9 +53,7 @@ function App() {
 import { useUserSettings } from '@wemogy/better-auth-react'
 
 function UserSettings() {
-  const { changePassword, updateProfile, isLoading, error } = useUserSettings(
-    'http://localhost:3001',
-  )
+  const { changePassword, updateProfile, isLoading, error } = useUserSettings()
 
   const handleChangePassword = async () => {
     try {
@@ -91,9 +89,7 @@ function UserSettings() {
 
 ### Components
 
-The components use minimal Tailwind CSS styling and accept a `className` prop for customization.
-
-When using the AuthProvider, you can omit the `baseURL` prop (recommended for better performance). Otherwise, provide it directly.
+The components use minimal Tailwind CSS styling and accept a `className` prop for customization. They automatically use the authClient from the AuthProvider.
 
 ```tsx
 import {
@@ -107,11 +103,11 @@ function AuthPage() {
   return (
     <div>
       <h2>Register</h2>
-      <RegisterForm /> {/* Uses authClient from Provider */}
+      <RegisterForm />
       <h2>Login</h2>
-      <LoginForm /> {/* Uses authClient from Provider */}
+      <LoginForm />
       <h2>Reset Password</h2>
-      <PasswordResetForm /> {/* Uses authClient from Provider */}
+      <PasswordResetForm />
       <h2>Setup 2FA</h2>
       <TwoFactorSetup
         onSetup={async () => {
@@ -129,19 +125,10 @@ function AuthPage() {
 }
 ```
 
-Or provide baseURL directly (creates new authClient instances):
-
-```tsx
-<RegisterForm baseURL="http://localhost:3001" />
-```
-
 ## Customization
 
 Override styles by passing a custom `className`:
 
 ```tsx
-<RegisterForm
-  baseURL="http://localhost:3001"
-  className="max-w-md mx-auto bg-white p-6 rounded-lg shadow-md"
-/>
+<RegisterForm className="max-w-md mx-auto bg-white p-6 rounded-lg shadow-md" />
 ```
