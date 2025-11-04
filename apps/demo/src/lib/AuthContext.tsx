@@ -13,15 +13,13 @@ type User = {
   name?: string
 }
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
 interface AuthContextType {
   user: User | null
   isLoading: boolean
-  signIn: (email: string, password: string) => Promise<any>
-  signUp: (email: string, password: string, name?: string) => Promise<any>
-  signOut: () => Promise<any>
+  signIn: (email: string, password: string) => Promise<unknown>
+  signUp: (email: string, password: string, name?: string) => Promise<unknown>
+  signOut: () => Promise<void>
 }
-/* eslint-enable @typescript-eslint/no-explicit-any */
 
 const AuthContext = createContext<AuthContextType | null>(null)
 
@@ -66,7 +64,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       let errorMessage =
         'Anmeldung fehlgeschlagen. Bitte überprüfen Sie Ihre Eingaben.'
 
-      const err = error as any
+      const err = error as { code?: string; message?: string }
       if (err?.code === 'INVALID_EMAIL_OR_PASSWORD') {
         errorMessage =
           'Ungültige E-Mail oder Passwort. Bitte versuchen Sie es erneut.'
@@ -116,7 +114,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       let errorMessage =
         'Registrierung fehlgeschlagen. Bitte versuchen Sie es später erneut.'
 
-      const err = error as any
+      const err = error as { code?: string; message?: string }
       if (err?.code === 'USER_ALREADY_EXISTS') {
         errorMessage =
           'Diese E-Mail ist bereits registriert. Bitte melden Sie sich an.'

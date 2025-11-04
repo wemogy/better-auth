@@ -1,6 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 // import logo from '../logo.svg'
-import { useAuth } from '../lib/auth-context'
+import { useAuth } from '../lib/AuthContext'
 
 export const Route = createFileRoute('/')({
   component: App,
@@ -41,9 +41,24 @@ function App() {
             <p className="text-lg text-gray-300 mb-4">
               Sign in or create an account to test authentication
             </p>
-            <p className="text-sm text-gray-400">
+            <p className="text-sm text-gray-400 mb-4">
               This demo uses Better Auth with a custom Cosmos DB adapter
             </p>
+
+            <div className="flex gap-4 justify-center">
+              <a
+                className="bg-cyan-600 hover:bg-cyan-700 text-white px-6 py-2 rounded-lg font-medium transition-colors"
+                href="/login"
+              >
+                Custom Login
+              </a>
+              <a
+                className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg font-medium transition-colors"
+                href="/auth-ui"
+              >
+                UI Components
+              </a>
+            </div>
           </div>
         )}
 

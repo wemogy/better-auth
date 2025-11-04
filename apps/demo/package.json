@@ -4,7 +4,6 @@
   "type": "module",
   "scripts": {
     "dev": "vite --port 3000",
-    "build": "vite build && tsc",
     "serve": "vite preview",
     "test": "vitest run",
     "lint": "eslint",
@@ -21,7 +20,8 @@
     "lucide-react": "^0.545.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "tailwindcss": "^4.0.6"
+    "tailwindcss": "^4.0.6",
+    "@wemogy/better-auth-react": "workspace:*"
   },
   "devDependencies": {
     "@tanstack/eslint-config": "^0.3.0",
