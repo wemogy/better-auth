@@ -1,12 +1,13 @@
 import { TanStackDevtools } from '@tanstack/react-devtools'
 import { Outlet, createRootRoute } from '@tanstack/react-router'
 import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools'
+import { AuthProvider } from '@wemogy/better-auth-react'
 import Header from '../components/Header'
-import { AuthProvider } from '../lib/AuthContext'
+import { authClient } from '../lib/authClient'
 
 export const Route = createRootRoute({
   component: () => (
-    <AuthProvider>
+    <AuthProvider authClient={authClient}>
       <Header />
       <Outlet />
       <TanStackDevtools

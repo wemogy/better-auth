@@ -47,10 +47,10 @@ jobs:
         run: pnpm -r exec pnpm version ${{ needs.get-version.outputs.next-version }} --no-git-tag-version --allow-same-version
 
       - name: Build library
-        run: pnpm build --filter @wemogy/better-auth-cosmos
+        run: pnpm build
 
       - name: Publish NPM package
-        run: pnpm publish --filter @wemogy/better-auth-cosmos --no-git-checks
+        run: pnpm publish --no-git-checks
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
