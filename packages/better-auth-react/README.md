@@ -130,7 +130,5 @@ function AuthPage() {
 Override styles by passing a custom `className`:
 
 ```tsx
-<RegisterForm
-  className="max-w-md mx-auto bg-white p-6 rounded-lg shadow-md"
-/>
+<RegisterForm className="max-w-md mx-auto bg-white p-6 rounded-lg shadow-md" />
 ```
