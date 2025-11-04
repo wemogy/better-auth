@@ -7,6 +7,7 @@ Maintained by **wemogy**.
 ## Packages
 
 - `packages/better-auth-cosmos` – Published as `@wemogy/better-auth-cosmos`. Provides the Cosmos DB adapter consumed by better-auth. See the package-level [README](packages/better-auth-cosmos/README.md) for detailed usage instructions.
+- `packages/better-auth-react` – Published as `@wemogy/better-auth-react`. Provides React components and hooks for better-auth authentication. See the package-level [README](packages/better-auth-react/README.md) for detailed usage instructions.
 
 ## Applications
 
