@@ -6,7 +6,7 @@ vi.mock('better-auth/api', () => ({
   createAuthMiddleware: vi.fn(() => vi.fn()),
   createAuthEndpoint: vi.fn(() => vi.fn()),
   APIError: class APIError extends Error {
-    constructor(message: string, options?: any) {
+    constructor(message: string) {
       super(message);
       this.name = 'APIError';
     }

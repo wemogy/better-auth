@@ -1,9 +1,9 @@
 import type { BetterAuthClientPlugin } from 'better-auth/client';
-import type { multiTenancyPlugin } from './index';
 
 export const multiTenancyClientPlugin = (): BetterAuthClientPlugin => {
   return {
     id: 'multi-tenancy',
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     $InferServerPlugin: {} as any,
     getActions: $fetch => ({
       multiTenancy: {

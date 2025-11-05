@@ -116,7 +116,7 @@ export const multiTenancyPlugin = (options: MultiTenancyOptions = {}): BetterAut
             where: [{ field: 'id', value: userTenantId, operator: 'eq' }],
           });
 
-          return ctx.json({ tenants: tenants as any[] });
+          return ctx.json({ tenants: tenants as readonly unknown[] });
         },
       ),
 
@@ -169,10 +169,10 @@ export const multiTenancyPlugin = (options: MultiTenancyOptions = {}): BetterAut
               ctx.path.startsWith('/multi-tenancy/create-tenant')
             ) {
               // For auth endpoints, check if tenant context is provided
-              const tenantId = ctx.request?.headers?.get('x-tenant-id') || (ctx.body as any)?.tenantId || ctx.query?.tenantId;
+              const tenantId = ctx.request?.headers?.get('x-tenant-id') || (ctx.body as Record<string, unknown>)?.tenantId || ctx.query?.tenantId;
 
               if (tenantId) {
-                (ctx.context as any).tenantId = tenantId;
+                (ctx.context as Record<string, unknown>).tenantId = tenantId;
               }
               return;
             }
@@ -190,7 +190,7 @@ export const multiTenancyPlugin = (options: MultiTenancyOptions = {}): BetterAut
             }
 
             // Add tenant context to the request
-            (ctx.context as any).tenantId = activeTenantId;
+            (ctx.context as Record<string, unknown>).tenantId = activeTenantId;
           }),
         },
       ],
