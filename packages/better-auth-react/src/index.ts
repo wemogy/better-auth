@@ -7,3 +7,10 @@ export { RegisterForm } from './components/RegisterForm'
 export { LoginForm } from './components/LoginForm'
 export { PasswordResetForm } from './components/PasswordResetForm'
 export { TwoFactorSetup } from './components/two-factor/TwoFactorSetup'
+
+// Multi-Tenancy exports
+export { useTenants } from './hooks/multi-tenancy/useTenants'
+export { useCreateTenant } from './hooks/multi-tenancy/useCreateTenant'
+export { useSwitchTenant } from './hooks/multi-tenancy/useSwitchTenant'
+export { TenantSelector } from './components/multi-tenancy/TenantSelector'
+export { CreateTenantForm } from './components/multi-tenancy/CreateTenantForm'
