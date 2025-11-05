@@ -26,7 +26,9 @@ function Tenant2Register() {
         </h2>
 
         <div className="bg-green-900/50 rounded-md p-3 mb-6 text-xs text-gray-300">
-          <p className="font-medium text-green-400 mb-1">Tenant 2 Registration:</p>
+          <p className="font-medium text-green-400 mb-1">
+            Tenant 2 Registration:
+          </p>
           <p>Create an account for Tenant 2</p>
           <p>This account will be isolated in Tenant 2</p>
         </div>
