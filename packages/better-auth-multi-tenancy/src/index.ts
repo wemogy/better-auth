@@ -40,6 +40,7 @@ export const multiTenancyPlugin = (options: MultiTenancyOptions = {}): BetterAut
         fields: {
           [tenantField]: {
             type: 'string',
+            required: true,
             references: {
               model: 'tenant',
               field: 'id',
@@ -159,7 +160,22 @@ export const multiTenancyPlugin = (options: MultiTenancyOptions = {}): BetterAut
           path: '/**',
           middleware: createAuthMiddleware(async ctx => {
             // Skip for auth endpoints and multi-tenancy setup
-            if (ctx.path.startsWith('/sign-in') || ctx.path.startsWith('/sign-up') || ctx.path.startsWith('/multi-tenancy/create-tenant')) {
+            if (
+              ctx.path.startsWith('/sign-in') ||
+              ctx.path.startsWith('/sign-up') ||
+              ctx.path.startsWith('/get-session') ||
+              ctx.path.startsWith('/sign-out') ||
+              ctx.path.startsWith('/callback') ||
+              ctx.path.startsWith('/multi-tenancy/create-tenant')
+            ) {
+              // For auth endpoints, check if tenant context is provided
+              const tenantId = ctx.request?.headers?.get('x-tenant-id') ||
+                              (ctx.body as any)?.tenantId ||
+                              ctx.query?.tenantId;
+
+              if (tenantId) {
+                (ctx.context as any).tenantId = tenantId;
+              }
               return;
             }
 

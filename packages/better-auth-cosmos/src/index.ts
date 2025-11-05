@@ -34,19 +34,20 @@ export const buildCosmosAdapter = async (config: CosmosAdapterConfig) => {
   const { adapterId, adapterName, dbCredentials, dbName, debugLogs = false, usePlural = false } = config;
 
   // Create Cosmos instance with known tables including plugin tables
-  const cosmos = await Cosmos.create(dbCredentials, dbName, [
-    'users',
-    'sessions',
-    'verifications',
-    'accounts',
-    'organizations',
-    'members',
-    'teams',
-    'invitations',
-    'teamMembers',
+  const baseContainerNames = [
+    'user',
+    'session',
+    'verification',
+    'account',
+    'organization',
+    'member',
+    'team',
+    'invitation',
+    'teamMember',
     'twoFactor',
     'tenant', // Multi-Tenancy plugin
-  ]);
+  ];
+  const cosmos = await Cosmos.create(dbCredentials, dbName, baseContainerNames, usePlural);
 
   return createAdapterFactory({
     config: {
@@ -65,51 +66,50 @@ export const buildCosmosAdapter = async (config: CosmosAdapterConfig) => {
       void _options;
       void schema;
       void debugLog;
-      void getModelName;
       void getFieldName;
       void getFieldAttributes;
 
       return {
         create: async ({ model, data, select: _select }) => {
           void _select;
-          return await cosmos.create(model, data);
+          return await cosmos.create(getModelName(model), data);
         },
         update: async ({ model, where, update }) => {
-          const existingItem = await cosmos.findOne(model, queryBuilder({ where }));
+          const existingItem = await cosmos.findOne(getModelName(model), queryBuilder({ where }));
           const updatedItem = { ...(existingItem || {}), ...update };
-          return (await cosmos.update(model, updatedItem)) as typeof update;
+          return (await cosmos.update(getModelName(model), updatedItem)) as typeof update;
         },
         updateMany: async ({ model, where, update }) => {
-          const existingItems = await cosmos.findMany(model, queryBuilder({ where }));
+          const existingItems = await cosmos.findMany(getModelName(model), queryBuilder({ where }));
           const updated = await Promise.all(
             existingItems.map(item => {
               const updatedItem = { ...(item || {}), ...update };
-              return cosmos.update(model, updatedItem);
+              return cosmos.update(getModelName(model), updatedItem);
             }),
           );
           return updated.length;
         },
         delete: async ({ model, where }) => {
-          const existingItem = await cosmos.findOne(model, queryBuilder({ where }));
+          const existingItem = await cosmos.findOne(getModelName(model), queryBuilder({ where }));
           if (existingItem) {
-            await cosmos.delete(model, existingItem.id);
+            await cosmos.delete(getModelName(model), existingItem.id);
           }
         },
         deleteMany: async ({ model, where }) => {
-          const existingItems = await cosmos.findMany(model, queryBuilder({ where }));
-          const updated = await Promise.all(existingItems.map(item => cosmos.delete(model, item.id)));
+          const existingItems = await cosmos.findMany(getModelName(model), queryBuilder({ where }));
+          const updated = await Promise.all(existingItems.map(item => cosmos.delete(getModelName(model), item.id)));
           return updated.length;
         },
         findOne: async ({ model, select, where }) => {
-          const existingItem = await cosmos.findOne(model, queryBuilder({ select, where }));
+          const existingItem = await cosmos.findOne(getModelName(model), queryBuilder({ select, where }));
           return existingItem;
         },
         findMany: async ({ model, where, sortBy, offset, limit }) => {
-          const existingItems = await cosmos.findMany(model, queryBuilder({ where, sortBy, offset, limit }));
+          const existingItems = await cosmos.findMany(getModelName(model), queryBuilder({ where, sortBy, offset, limit }));
           return existingItems;
         },
         count: async ({ model, where }) => {
-          const existingItems = await cosmos.findMany(model, queryBuilder({ where }));
+          const existingItems = await cosmos.findMany(getModelName(model), queryBuilder({ where }));
           return existingItems.length;
         },
       };

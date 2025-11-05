@@ -1,10 +1,10 @@
 import type { BetterAuthClientPlugin } from 'better-auth/client';
 import type { multiTenancyPlugin } from './index';
 
-export const multiTenancyClientPlugin = () => {
+export const multiTenancyClientPlugin = (): BetterAuthClientPlugin => {
   return {
     id: 'multi-tenancy',
-    $InferServerPlugin: {} as ReturnType<typeof multiTenancyPlugin>,
+    $InferServerPlugin: {} as any,
     getActions: $fetch => ({
       multiTenancy: {
         createTenant: async (data: { name: string; description?: string }) => {
@@ -26,5 +26,5 @@ export const multiTenancyClientPlugin = () => {
         },
       },
     }),
-  } satisfies BetterAuthClientPlugin;
+  };
 };

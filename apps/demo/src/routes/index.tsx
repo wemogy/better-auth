@@ -48,19 +48,39 @@ function App() {
               This demo uses Better Auth with a custom Cosmos DB adapter
             </p>
 
+            <div className="flex flex-col gap-4 justify-center items-center">
             <div className="flex gap-4 justify-center">
-              <a
-                className="bg-cyan-600 hover:bg-cyan-700 text-white px-6 py-2 rounded-lg font-medium transition-colors"
+            <a
+              className="bg-cyan-600 hover:bg-cyan-700 text-white px-6 py-2 rounded-lg font-medium transition-colors"
                 href="/login"
-              >
+            >
                 Custom Login
               </a>
-              <a
-                className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg font-medium transition-colors"
+            <a
+              className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg font-medium transition-colors"
                 href="/auth-ui"
-              >
+            >
                 UI Components
-              </a>
+                </a>
+              </div>
+
+              <div className="mt-4">
+                <p className="text-sm text-gray-400 mb-2">Multi-Tenancy Demo:</p>
+                <div className="flex gap-2 justify-center">
+                  <a
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors text-sm"
+                    href="/tenant1/login"
+                  >
+                    Tenant 1 Login
+                  </a>
+                  <a
+                    className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-colors text-sm"
+                    href="/tenant2/login"
+                  >
+                    Tenant 2 Login
+                  </a>
+                </div>
+              </div>
             </div>
           </div>
         )}
