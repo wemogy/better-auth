@@ -33,6 +33,7 @@ interface CosmosAdapterConfig {
 export const buildCosmosAdapter = async (config: CosmosAdapterConfig) => {
   const { adapterId, adapterName, dbCredentials, dbName, debugLogs = false, usePlural = false } = config;
 
+  // Create Cosmos instance with known tables including plugin tables
   const cosmos = await Cosmos.create(dbCredentials, dbName, [
     'users',
     'sessions',
@@ -44,6 +45,7 @@ export const buildCosmosAdapter = async (config: CosmosAdapterConfig) => {
     'invitations',
     'teamMembers',
     'twoFactor',
+    'tenant', // Multi-Tenancy plugin
   ]);
 
   return createAdapterFactory({
@@ -58,21 +60,14 @@ export const buildCosmosAdapter = async (config: CosmosAdapterConfig) => {
       supportsNumericIds: false,
     },
 
-    adapter: ({
-      options: _options,
-      schema: _schema,
-      debugLog: _debugLog,
-      getModelName: _getModelName,
-      getFieldName: _getFieldName,
-      getFieldAttributes: _getFieldAttributes,
-    }) => {
+    adapter: ({ options: _options, schema, debugLog, getModelName, getFieldName, getFieldAttributes }) => {
       // Mark parameters as intentionally unused to match Better Auth adapter signature
       void _options;
-      void _schema;
-      void _debugLog;
-      void _getModelName;
-      void _getFieldName;
-      void _getFieldAttributes;
+      void schema;
+      void debugLog;
+      void getModelName;
+      void getFieldName;
+      void getFieldAttributes;
 
       return {
         create: async ({ model, data, select: _select }) => {

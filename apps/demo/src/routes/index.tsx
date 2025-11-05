@@ -1,13 +1,14 @@
 import { createFileRoute } from '@tanstack/react-router'
 // import logo from '../logo.svg'
-import { useAuth } from '../lib/AuthContext'
+import { useUser } from '@wemogy/better-auth-react'
+import TenantManager from '../components/TenantManager'
 
 export const Route = createFileRoute('/')({
   component: App,
 })
 
 function App() {
-  const { user, isLoading } = useAuth()
+  const { user, isLoading } = useUser()
 
   if (isLoading) {
     return (
@@ -29,9 +30,11 @@ function App() {
             <h2 className="text-2xl font-bold text-green-400 mb-4">
               Welcome back, {user.email}!
             </h2>
-            <p className="text-lg text-gray-300">
+            <p className="text-lg text-gray-300 mb-4">
               You are successfully authenticated with Better Auth + Cosmos DB
             </p>
+
+            <TenantManager />
           </div>
         ) : (
           <div className="mb-8">

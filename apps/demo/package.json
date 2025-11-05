@@ -21,7 +21,8 @@
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "tailwindcss": "^4.0.6",
-    "@wemogy/better-auth-react": "workspace:*"
+    "@wemogy/better-auth-react": "workspace:*",
+    "@wemogy/better-auth-multi-tenancy": "workspace:*"
   },
   "devDependencies": {
     "@tanstack/eslint-config": "^0.3.0",

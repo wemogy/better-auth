@@ -1,5 +1,6 @@
 import { betterAuth } from 'better-auth';
 import { buildCosmosAdapter } from 'better-auth-cosmos';
+import { multiTenancyPlugin } from '@wemogy/better-auth-multi-tenancy';
 import 'dotenv/config';
 
 export const createAuth = async () => {
@@ -20,6 +21,7 @@ export const createAuth = async () => {
     emailAndPassword: {
       enabled: true,
     },
+    plugins: [multiTenancyPlugin()],
     trustedOrigins: ['http://localhost:3000', 'http://localhost:5173'],
   });
 };

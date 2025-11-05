@@ -1,8 +1,8 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useNavigate } from '@tanstack/react-router'
 import { RegisterForm, LoginForm } from '@wemogy/better-auth-react'
+import { useUser } from '@wemogy/better-auth-react'
 import { useEffect, useState } from 'react'
-import { useAuth } from '../lib/AuthContext'
 
 export const Route = createFileRoute('/login')({
   component: Login,
@@ -10,7 +10,7 @@ export const Route = createFileRoute('/login')({
 
 function Login() {
   const [isSignUp, setIsSignUp] = useState(false)
-  const { user } = useAuth()
+  const { user } = useUser()
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -35,12 +35,9 @@ function Login() {
         )}
 
         {isSignUp ? (
-          <RegisterForm
-            baseURL="http://localhost:3001"
-            className="text-white"
-          />
+          <RegisterForm className="text-white" />
         ) : (
-          <LoginForm baseURL="http://localhost:3001" className="text-white" />
+          <LoginForm className="text-white" />
         )}
 
         <div className="mt-6 text-center">

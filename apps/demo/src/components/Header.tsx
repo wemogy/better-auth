@@ -1,14 +1,16 @@
 import { Link } from '@tanstack/react-router'
+import { useSignout, useUser } from '@wemogy/better-auth-react'
 import { Home, Menu, X, User, LogOut } from 'lucide-react'
 import React from 'react'
 import { useState } from 'react'
-import { useAuth } from '../lib/AuthContext'
 
 interface IHeaderProps {}
 
 const Header: React.FC<IHeaderProps> = () => {
   const [isOpen, setIsOpen] = useState(false)
-  const { user, signOut, isLoading } = useAuth()
+  const { user, isLoading } = useUser()
+
+  const { signOut } = useSignout()
 
   return (
     <>

@@ -1,5 +1,7 @@
 export { AuthProvider, useAuthClient } from './AuthProvider'
 export { useUser } from './hooks/useUser'
+export { useAuth } from './hooks/useAuth'
+export { useSignout } from './hooks/useSignout'
 export { useUserSettings } from './hooks/useUserSettings'
 export { RegisterForm } from './components/RegisterForm'
 export { LoginForm } from './components/LoginForm'
