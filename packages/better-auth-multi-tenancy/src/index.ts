@@ -169,9 +169,7 @@ export const multiTenancyPlugin = (options: MultiTenancyOptions = {}): BetterAut
               ctx.path.startsWith('/multi-tenancy/create-tenant')
             ) {
               // For auth endpoints, check if tenant context is provided
-              const tenantId = ctx.request?.headers?.get('x-tenant-id') ||
-                              (ctx.body as any)?.tenantId ||
-                              ctx.query?.tenantId;
+              const tenantId = ctx.request?.headers?.get('x-tenant-id') || (ctx.body as any)?.tenantId || ctx.query?.tenantId;
 
               if (tenantId) {
                 (ctx.context as any).tenantId = tenantId;
