@@ -15,7 +15,7 @@ app.get('/', c => {
 app.use(
   '/api/auth/*', // or replace with "*" to enable cors for all routes
   cors({
-    origin: ['http://localhost:3000', 'http://localhost:5173'],
+    origin: ['http://localhost:3000', 'http://localhost:5173', '*'],
     allowHeaders: ['Content-Type', 'Authorization', 'x-tenant-id'],
     allowMethods: ['POST', 'GET', 'OPTIONS'],
     exposeHeaders: ['Content-Length', 'Set-Cookie'],

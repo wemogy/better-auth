@@ -1,5 +1,7 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { createAuthMiddleware, createAuthEndpoint, APIError } from 'better-auth/api';
 import { getSessionFromCtx } from 'better-auth/api';
+import { createInternalAdapter } from 'better-auth/db';
 import type { BetterAuthPlugin } from 'better-auth';
 
 export interface MultiTenancyOptions {
@@ -176,6 +178,35 @@ export const multiTenancyPlugin = (options: MultiTenancyOptions = {}): BetterAut
     },
     hooks: {
       before: [
+        {
+          matcher: () => true,
+          handler: createAuthMiddleware(async ctx => {
+            console.log('BEFORE ONEEEE');
+            const clonedAdapter = {
+              ...ctx.context.adapter,
+              findOneX: async (...args: any[]) => {
+                console.log('FIND ONE OVERRIDE', args);
+                return null;
+              },
+            };
+
+            return {
+              context: {
+                ...ctx,
+                context: {
+                  ...ctx.context,
+                  adapter: clonedAdapter,
+                  internalAdapter: createInternalAdapter(clonedAdapter, {
+                    options: ctx.context.options,
+                    logger: ctx.context.logger,
+                    hooks: ctx.context.hooks,
+                    generateId: ctx.context.generateId,
+                  }),
+                },
+              },
+            };
+          }),
+        },
         {
           matcher: ctx => ctx.path.startsWith('/sign-in/email') || ctx.path.startsWith('/sign-up/email'),
           handler: createAuthMiddleware(async ctx => {

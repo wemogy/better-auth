@@ -69,9 +69,15 @@ export const buildCosmosAdapter = async (config: CosmosAdapterConfig) => {
       void getFieldName;
       void getFieldAttributes;
 
+      console.log(`Cosmos Adapter initialized: ${adapterName} (ID: ${adapterId})`);
+
       return {
         create: async ({ model, data, select: _select }) => {
           void _select;
+          console.log('COSMOS CREATE', model, data);
+          if (model === 'users') {
+            (data as any).tenantId = 'whereClaus';
+          }
           return await cosmos.create(getModelName(model), data);
         },
         update: async ({ model, where, update }) => {
@@ -101,6 +107,12 @@ export const buildCosmosAdapter = async (config: CosmosAdapterConfig) => {
           return updated.length;
         },
         findOne: async ({ model, select, where }) => {
+          where.push({
+            field: 'tenantId',
+            operator: 'eq',
+            value: 'whereClaus',
+            connector: 'AND',
+          });
           const existingItem = await cosmos.findOne(getModelName(model), queryBuilder({ select, where }));
           return existingItem;
         },

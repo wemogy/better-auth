@@ -1,5 +1,5 @@
 import { betterAuth } from 'better-auth';
-import { buildCosmosAdapter } from 'better-auth-cosmos';
+import { buildCosmosAdapter } from '@wemogy/better-auth-cosmos';
 import { multiTenancyPlugin } from '@wemogy/better-auth-multi-tenancy';
 import 'dotenv/config';
 
@@ -22,6 +22,6 @@ export const createAuth = async () => {
       enabled: true,
     },
     plugins: [multiTenancyPlugin()],
-    trustedOrigins: ['http://localhost:3000', 'http://localhost:5173'],
+    trustedOrigins: ['http://localhost:3000', 'http://localhost:5173', '*'],
   });
 };
