@@ -35,7 +35,7 @@ export const multiTenancyClientPlugin = () => {
   return {
     id: 'multi-tenancy',
     $InferServerPlugin: {} as ReturnType<typeof multiTenancyPlugin>,
-    getActions: ($fetch) => {
+    getActions: $fetch => {
       // Create a tenant-aware wrapper for $fetch
       const tenantAwareFetch = async (url: string, options?: RequestInit) => {
         const tenantId = getTenantContext();
