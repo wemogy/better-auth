@@ -33,6 +33,7 @@ function Tenant2Login() {
 
         <LoginForm
           className="text-white"
+          tenantId="tenant2"
           onSuccess={() => {
             navigate({ to: '/' })
           }}

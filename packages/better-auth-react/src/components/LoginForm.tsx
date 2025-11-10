@@ -3,9 +3,15 @@ import { useAuthClient } from '../AuthProvider'
 
 interface LoginFormProps {
   className?: string
+  tenantId?: string
+  onSuccess?: () => void
 }
 
-export function LoginForm({ className = '' }: LoginFormProps) {
+export function LoginForm({
+  className = '',
+  tenantId,
+  onSuccess,
+}: LoginFormProps) {
   const authClient = useAuthClient()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -18,8 +24,13 @@ export function LoginForm({ className = '' }: LoginFormProps) {
     setError('')
 
     try {
-      await authClient.signIn.email({ email, password })
+      await authClient.signIn.email({
+        email,
+        password,
+        ...(tenantId && { tenantId }),
+      })
       // Success - you might want to redirect or update state
+      onSuccess?.()
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Login failed')
     } finally {

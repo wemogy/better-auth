@@ -35,6 +35,7 @@ function Tenant2Register() {
 
         <RegisterForm
           className="text-white"
+          tenantId="tenant2"
           onSuccess={() => {
             navigate({ to: '/' })
           }}

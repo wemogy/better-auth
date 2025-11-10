@@ -16,6 +16,26 @@ export interface MultiTenancyOptions {
   tenantField?: string;
 }
 
+/**
+ * Get tenant-specific cookie name
+ * @param tenantId - The tenant ID
+ * @returns Cookie name in format: ${tenantId}_session
+ */
+function getTenantCookieName(tenantId: string): string {
+  return `${tenantId}_session`;
+}
+
+/**
+ * Extract tenant ID from route path
+ * Matches patterns like /tenant1/*, /tenant2/*, etc.
+ * @param path - The request path
+ * @returns Tenant ID if found, undefined otherwise
+ */
+function extractTenantFromRoute(path: string): string | undefined {
+  const match = path.match(/^\/(tenant\d+)\//);
+  return match ? match[1] : undefined;
+}
+
 export const multiTenancyPlugin = (options: MultiTenancyOptions = {}): BetterAuthPlugin => {
   const { enforceTenantIsolation = true, tenantField = 'tenantId' } = options;
 
@@ -154,6 +174,168 @@ export const multiTenancyPlugin = (options: MultiTenancyOptions = {}): BetterAut
         },
       ),
     },
+    hooks: {
+      before: [
+        {
+          matcher: ctx => ctx.path.startsWith('/sign-in/email') || ctx.path.startsWith('/sign-up/email'),
+          handler: createAuthMiddleware(async ctx => {
+            // Extract tenantId from route, header, body, or query
+            const tenantId =
+              extractTenantFromRoute(ctx.path) ||
+              ctx.request?.headers?.get('x-tenant-id') ||
+              ((ctx.body as Record<string, unknown>)?.tenantId as string | undefined) ||
+              (ctx.query?.tenantId as string | undefined);
+
+            if (!tenantId && ctx.path.startsWith('/sign-up/email')) {
+              // Tenant ID is required for sign-up
+              throw new APIError('BAD_REQUEST', {
+                message: 'Tenant ID is required for user registration',
+              });
+            }
+
+            if (tenantId) {
+              // Store tenantId in context for use in hooks and endpoints
+              (ctx.context as Record<string, unknown>).tenantId = tenantId;
+
+              // Override the session cookie name to use tenant-specific cookie
+              const cookieName = getTenantCookieName(tenantId);
+              if (ctx.context.authCookies?.sessionToken) {
+                ctx.context.authCookies.sessionToken.name = cookieName;
+              }
+
+              // For sign-up, ensure tenantId is in the body for user creation
+              if (ctx.path.startsWith('/sign-up/email') && ctx.body) {
+                (ctx.body as Record<string, unknown>)[tenantField] = tenantId;
+              }
+            }
+          }),
+        },
+        {
+          matcher: ctx => ctx.path.startsWith('/get-session'),
+          handler: createAuthMiddleware(async ctx => {
+            // Extract tenantId from route, header, or query
+            const tenantId =
+              extractTenantFromRoute(ctx.path) || ctx.request?.headers?.get('x-tenant-id') || (ctx.query?.tenantId as string | undefined);
+
+            if (tenantId) {
+              // Store tenantId in context
+              (ctx.context as Record<string, unknown>).tenantId = tenantId;
+
+              // Override cookie reading to use tenant-specific cookie
+              const cookieName = getTenantCookieName(tenantId);
+              if (ctx.context.authCookies?.sessionToken) {
+                ctx.context.authCookies.sessionToken.name = cookieName;
+              }
+            }
+          }),
+        },
+        {
+          matcher: ctx => ctx.path.startsWith('/sign-out'),
+          handler: createAuthMiddleware(async ctx => {
+            // Extract tenantId from route, header, or query
+            const tenantId =
+              extractTenantFromRoute(ctx.path) || ctx.request?.headers?.get('x-tenant-id') || (ctx.query?.tenantId as string | undefined);
+
+            if (tenantId) {
+              // Store tenantId in context for cookie clearing
+              (ctx.context as Record<string, unknown>).tenantId = tenantId;
+
+              // Override cookie name for sign-out
+              const cookieName = getTenantCookieName(tenantId);
+              if (ctx.context.authCookies?.sessionToken) {
+                ctx.context.authCookies.sessionToken.name = cookieName;
+              }
+            }
+          }),
+        },
+      ],
+      after: [
+        {
+          matcher: ctx => ctx.path.startsWith('/sign-in/email') || ctx.path.startsWith('/sign-up/email'),
+          handler: createAuthMiddleware(async ctx => {
+            const tenantId = (ctx.context as Record<string, unknown>)?.tenantId as string | undefined;
+
+            // Debug: Log if hook is executed
+            console.log('[MultiTenancy] After hook executed:', {
+              path: ctx.path,
+              tenantId,
+              hasNewSession: !!ctx.context.newSession,
+              hasReturned: !!ctx.context.returned,
+              responseHeaders: ctx.context.responseHeaders ? Array.from(ctx.context.responseHeaders.entries()) : null,
+            });
+
+            if (tenantId) {
+              // Check if Better Auth set a default cookie in the response headers
+              const responseHeaders = ctx.context.responseHeaders;
+              const setCookieHeader = responseHeaders?.get('Set-Cookie');
+
+              console.log('[MultiTenancy] Set-Cookie header:', setCookieHeader);
+
+              // Try to get session token from newSession or from response
+              let sessionToken: string | undefined;
+              let expiresIn = 604800; // 7 days default
+
+              if (ctx.context.newSession) {
+                // Session was successfully created
+                sessionToken = ctx.context.newSession.session?.token;
+                const sessionExpiresAt = ctx.context.newSession.session?.expiresAt;
+                if (sessionExpiresAt) {
+                  expiresIn = Math.floor((new Date(sessionExpiresAt).getTime() - Date.now()) / 1000);
+                }
+              } else if (setCookieHeader) {
+                // Try to extract session token from Set-Cookie header
+                const cookiePrefix = ctx.context.options?.advanced?.cookiePrefix || 'better-auth';
+                const defaultCookieName = `${cookiePrefix}.session_token`;
+
+                // Check if Better Auth set a cookie
+                if (setCookieHeader.includes(defaultCookieName)) {
+                  try {
+                    // Try to get the cookie from the request (it might have been set)
+                    const cookieValue = await ctx.getSignedCookie(defaultCookieName, ctx.context.secret);
+                    if (cookieValue) {
+                      sessionToken = cookieValue;
+                      console.log('[MultiTenancy] Extracted session token from default cookie');
+                    }
+                  } catch (error) {
+                    console.log('[MultiTenancy] Could not decode default cookie:', error);
+                  }
+                }
+              }
+
+              if (sessionToken && tenantId) {
+                const cookieName = getTenantCookieName(tenantId);
+
+                console.log('[MultiTenancy] Setting tenant-specific cookie:', {
+                  cookieName,
+                  hasToken: !!sessionToken,
+                  expiresIn,
+                });
+
+                // Set tenant-specific cookie
+                try {
+                  await ctx.setSignedCookie(cookieName, sessionToken, ctx.context.secret, {
+                    httpOnly: true,
+                    secure: ctx.context.options?.advanced?.useSecureCookies ?? false,
+                    sameSite: 'lax',
+                    maxAge: expiresIn,
+                    path: '/',
+                  });
+                  console.log('[MultiTenancy] Cookie set successfully:', cookieName);
+                } catch (error) {
+                  console.error('[MultiTenancy] Error setting cookie:', error);
+                }
+              } else {
+                console.warn('[MultiTenancy] No session token available:', {
+                  tenantId,
+                  hasNewSession: !!ctx.context.newSession,
+                  hasToken: !!sessionToken,
+                });
+              }
+            }
+          }),
+        },
+      ],
+    },
     ...(enforceTenantIsolation && {
       middlewares: [
         {
@@ -169,12 +351,28 @@ export const multiTenancyPlugin = (options: MultiTenancyOptions = {}): BetterAut
               ctx.path.startsWith('/multi-tenancy/create-tenant')
             ) {
               // For auth endpoints, check if tenant context is provided
-              const tenantId = ctx.request?.headers?.get('x-tenant-id') || (ctx.body as Record<string, unknown>)?.tenantId || ctx.query?.tenantId;
+              // Try to extract from route first, then fallback to other methods
+              const tenantId =
+                extractTenantFromRoute(ctx.path) ||
+                ctx.request?.headers?.get('x-tenant-id') ||
+                ((ctx.body as Record<string, unknown>)?.tenantId as string | undefined) ||
+                (ctx.query?.tenantId as string | undefined);
 
               if (tenantId) {
                 (ctx.context as Record<string, unknown>).tenantId = tenantId;
               }
               return;
+            }
+
+            // For other endpoints, try to get session using tenant-specific cookie
+            const tenantId = extractTenantFromRoute(ctx.path) || ctx.request?.headers?.get('x-tenant-id');
+
+            if (tenantId) {
+              // Override cookie name for session retrieval
+              const cookieName = getTenantCookieName(tenantId);
+              if (ctx.context.authCookies?.sessionToken) {
+                ctx.context.authCookies.sessionToken.name = cookieName;
+              }
             }
 
             const session = await getSessionFromCtx(ctx);
@@ -198,5 +396,5 @@ export const multiTenancyPlugin = (options: MultiTenancyOptions = {}): BetterAut
   } satisfies BetterAuthPlugin;
 };
 
-// Re-export client plugin
-export { multiTenancyClientPlugin } from './client';
+// Re-export client plugin and helpers
+export { multiTenancyClientPlugin, setTenantContext, getTenantContext } from './client';

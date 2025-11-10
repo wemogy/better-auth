@@ -3,9 +3,15 @@ import { useAuthClient } from '../AuthProvider'
 
 interface RegisterFormProps {
   className?: string
+  tenantId?: string
+  onSuccess?: () => void
 }
 
-export function RegisterForm({ className = '' }: RegisterFormProps) {
+export function RegisterForm({
+  className = '',
+  tenantId,
+  onSuccess,
+}: RegisterFormProps) {
   const authClient = useAuthClient()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -23,8 +29,10 @@ export function RegisterForm({ className = '' }: RegisterFormProps) {
         email,
         password,
         name: name || email.split('@')[0],
+        ...(tenantId && { tenantId }),
       })
       // Success - you might want to redirect or show success message
+      onSuccess?.()
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Registration failed')
     } finally {
