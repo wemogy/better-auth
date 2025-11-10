@@ -8,14 +8,26 @@ export class Cosmos {
     this.client = new CosmosClient(credentials);
   }
 
-  public static async create(credentials: CosmosClientOptions, dbName?: string, containerNames?: string[]) {
+  public static async create(credentials: CosmosClientOptions, dbName?: string, containerNames?: string[], usePlural?: boolean) {
     const instance = new Cosmos(credentials);
     if (dbName) {
       const { database } = await instance.client.databases.createIfNotExists({ id: dbName });
       instance.database = database;
     }
     if (instance.database && containerNames) {
-      await Promise.all(containerNames.map(name => instance.database.containers.createIfNotExists({ id: name, partitionKey: { paths: ['/id'] } })));
+      const pluralize = (word: string): string => {
+        if (!usePlural) return word;
+        // Simple pluralization rules
+        if (word.endsWith('s') || word.endsWith('sh') || word.endsWith('ch') || word.endsWith('x') || word.endsWith('z')) {
+          return word + 'es';
+        }
+        if (word.endsWith('y') && !/[aeiou]y$/.test(word)) {
+          return word.slice(0, -1) + 'ies';
+        }
+        return word + 's';
+      };
+      const pluralizedNames = containerNames.map(name => pluralize(name));
+      await Promise.all(pluralizedNames.map(name => instance.database.containers.createIfNotExists({ id: name, partitionKey: { paths: ['/id'] } })));
     }
     return instance;
   }
