@@ -15,21 +15,24 @@ export class Cosmos {
       instance.database = database;
     }
     if (instance.database && containerNames) {
-      const pluralize = (word: string): string => {
-        if (!usePlural) return word;
-        // Simple pluralization rules
-        if (word.endsWith('s') || word.endsWith('sh') || word.endsWith('ch') || word.endsWith('x') || word.endsWith('z')) {
-          return word + 'es';
-        }
-        if (word.endsWith('y') && !/[aeiou]y$/.test(word)) {
-          return word.slice(0, -1) + 'ies';
-        }
-        return word + 's';
-      };
-      const pluralizedNames = containerNames.map(name => pluralize(name));
-      await Promise.all(pluralizedNames.map(name => instance.database.containers.createIfNotExists({ id: name, partitionKey: { paths: ['/id'] } })));
+      await instance.createContainers(containerNames, usePlural);
     }
     return instance;
+  }
+
+  private static pluralize(word: string): string {
+    if (word.endsWith('s') || word.endsWith('sh') || word.endsWith('ch') || word.endsWith('x') || word.endsWith('z')) {
+      return word + 'es';
+    }
+    if (word.endsWith('y') && !/[aeiou]y$/.test(word)) {
+      return word.slice(0, -1) + 'ies';
+    }
+    return word + 's';
+  }
+
+  private async createContainers(containerNames: string[], usePlural?: boolean): Promise<void> {
+    const names = usePlural ? containerNames.map(name => Cosmos.pluralize(name)) : containerNames;
+    await Promise.all(names.map(name => this.database.containers.createIfNotExists({ id: name, partitionKey: { paths: ['/id'] } })));
   }
 
   private getContainer(containerName: string): Container {

@@ -21,7 +21,6 @@ export class CosmosAdapter {
   }
 
   async update<T extends ItemDefinition>({ model, where, update }: { model: string; where: Required<Where>[]; update: T }) {
-    // Add tenant filter to models that should be tenant-scoped
     where = this.enrichWhereWithTenantId(where);
 
     const existingItem = await this.cosmos.findOne<T>(this.getModelName(model), queryBuilder({ where }));
@@ -30,7 +29,6 @@ export class CosmosAdapter {
   }
 
   async updateMany<T extends ItemDefinition>({ model, where, update }: { model: string; where: CleanedWhere[]; update: T }) {
-    // Add tenant filter to models that should be tenant-scoped
     where = this.enrichWhereWithTenantId(where);
 
     const existingItems = await this.cosmos.findMany(this.getModelName(model), queryBuilder({ where }));
@@ -93,7 +91,6 @@ export class CosmosAdapter {
   }
 
   private enrichDataWithTenantId<T extends ItemDefinition>(data: T): void {
-    // Add tenantId to data if available
     if (this.tenantId) {
       (data as T & { tenantId?: string }).tenantId = this.tenantId;
     }
@@ -104,7 +101,6 @@ export class CosmosAdapter {
       where = [];
     }
 
-    // Add tenant filter to models that should be tenant-scoped
     if (this.tenantId) {
       where.push({
         field: 'tenantId',
