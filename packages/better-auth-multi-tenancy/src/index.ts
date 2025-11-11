@@ -181,51 +181,27 @@ export const multiTenancyPlugin = (options: MultiTenancyOptions = {}): BetterAut
         {
           matcher: () => true,
           handler: createAuthMiddleware(async ctx => {
-            console.log('BEFORE ONEEEE');
-            const clonedAdapter = {
-              ...ctx.context.adapter,
-              findOneX: async (...args: any[]) => {
-                console.log('FIND ONE OVERRIDE', args);
-                return null;
-              },
-            };
+            // Extract tenantId from various sources
+            let tenantId = (ctx.context as Record<string, unknown>)?.tenantId as string | undefined;
 
-            return {
-              context: {
-                ...ctx,
-                context: {
-                  ...ctx.context,
-                  adapter: clonedAdapter,
-                  internalAdapter: createInternalAdapter(clonedAdapter, {
-                    options: ctx.context.options,
-                    logger: ctx.context.logger,
-                    hooks: ctx.context.hooks,
-                    generateId: ctx.context.generateId,
-                  }),
-                },
-              },
-            };
-          }),
-        },
-        {
-          matcher: ctx => ctx.path.startsWith('/sign-in/email') || ctx.path.startsWith('/sign-up/email'),
-          handler: createAuthMiddleware(async ctx => {
-            // Extract tenantId from route, header, body, or query
-            const tenantId =
-              extractTenantFromRoute(ctx.path) ||
-              ctx.request?.headers?.get('x-tenant-id') ||
-              ((ctx.body as Record<string, unknown>)?.tenantId as string | undefined) ||
-              (ctx.query?.tenantId as string | undefined);
+            // If not already set, try to extract from route, headers, body, or query
+            if (!tenantId) {
+              tenantId =
+                extractTenantFromRoute(ctx.path) ||
+                ctx.request?.headers?.get('x-tenant-id') ||
+                ((ctx.body as Record<string, unknown>)?.tenantId as string | undefined) ||
+                (ctx.query?.tenantId as string | undefined);
+            }
 
+            // Validate tenantId for sign-up
             if (!tenantId && ctx.path.startsWith('/sign-up/email')) {
-              // Tenant ID is required for sign-up
               throw new APIError('BAD_REQUEST', {
                 message: 'Tenant ID is required for user registration',
               });
             }
 
+            // Set up tenant-specific configuration if tenantId is available
             if (tenantId) {
-              // Store tenantId in context for use in hooks and endpoints
               (ctx.context as Record<string, unknown>).tenantId = tenantId;
 
               // Override the session cookie name to use tenant-specific cookie
@@ -239,6 +215,64 @@ export const multiTenancyPlugin = (options: MultiTenancyOptions = {}): BetterAut
                 (ctx.body as Record<string, unknown>)[tenantField] = tenantId;
               }
             }
+
+            // For authenticated requests that don't have explicit tenantId,
+            // try to extract from session (but avoid for auth endpoints to prevent loops)
+            if (!tenantId && !ctx.path.startsWith('/sign-in') && !ctx.path.startsWith('/sign-up') && !ctx.path.startsWith('/get-session')) {
+              try {
+                // Temporarily set up cookie name for tenant extraction
+                const routeTenantId = extractTenantFromRoute(ctx.path) || ctx.request?.headers?.get('x-tenant-id');
+                if (routeTenantId) {
+                  const cookieName = getTenantCookieName(routeTenantId);
+                  if (ctx.context.authCookies?.sessionToken) {
+                    ctx.context.authCookies.sessionToken.name = cookieName;
+                  }
+                }
+
+                const session = await getSessionFromCtx(ctx);
+                if (session) {
+                  tenantId = session.session.activeTenantId || (session.user[tenantField as keyof typeof session.user] as string);
+                }
+              } catch (error) {
+                // Session might not be available or cookie issues, continue without tenantId
+                console.log('Could not extract tenantId from session in before-hook:', error);
+              }
+            }
+
+            console.log('beforeTenantId:', tenantId);
+            console.log('beforeTenantId - ctx.path:', ctx.path);
+            console.log('beforeTenantId - ctx.body:', ctx.body);
+
+            // Create a wrapped adapter that passes tenantId to all adapter methods
+            const wrappedAdapter = {
+              ...ctx.context.adapter,
+              create: async (params: any) => ctx.context.adapter.create({ ...params, tenantId }),
+              update: async (params: any) => ctx.context.adapter.update({ ...params, tenantId }),
+              updateMany: async (params: any) => ctx.context.adapter.updateMany({ ...params, tenantId }),
+              delete: async (params: any) => ctx.context.adapter.delete({ ...params, tenantId }),
+              deleteMany: async (params: any) => ctx.context.adapter.deleteMany({ ...params, tenantId }),
+              findOne: async (params: any) => ctx.context.adapter.findOne({ ...params, tenantId }),
+              findMany: async (params: any) => ctx.context.adapter.findMany({ ...params, tenantId }),
+              count: async (params: any) => ctx.context.adapter.count({ ...params, tenantId }),
+            } as any;
+
+            console.log(ctx.body);
+
+            return {
+              context: {
+                ...ctx,
+                context: {
+                  ...ctx.context,
+                  adapter: wrappedAdapter,
+                  internalAdapter: createInternalAdapter(wrappedAdapter, {
+                    options: ctx.context.options,
+                    logger: ctx.context.logger,
+                    hooks: ctx.context.hooks,
+                    generateId: ctx.context.generateId,
+                  }),
+                },
+              },
+            };
           }),
         },
         {

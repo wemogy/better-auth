@@ -9,6 +9,7 @@ interface QueryBuilderOptions {
 }
 export const queryBuilder = ({ select = ['*'], where, sortBy, offset, limit }: QueryBuilderOptions) => {
   const conditions: string[] = [];
+
   for (const w of where ?? []) {
     conditions.push(`${conditions.length ? ` ${w.connector} ` : ''}${mapCondition(w)}`);
   }

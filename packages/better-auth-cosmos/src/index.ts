@@ -1,7 +1,8 @@
 import { CosmosClientOptions } from '@azure/cosmos';
-import { createAdapterFactory, type DBAdapterDebugLogOption } from 'better-auth/adapters';
+import { createAdapterFactory, type DBAdapterDebugLogOption, type CleanedWhere, type Where } from 'better-auth/adapters';
 import { Cosmos } from './cosmos';
-import { queryBuilder } from './util/queryBuilder';
+import { CosmosAdapter } from './cosmosAdapter';
+export { CosmosAdapter };
 
 interface CosmosAdapterConfig {
   /**
@@ -28,10 +29,14 @@ interface CosmosAdapterConfig {
    * Database name
    */
   dbName: string;
+  /**
+   * Tenant ID for multi-tenancy
+   */
+  tenantId?: string;
 }
 
 export const buildCosmosAdapter = async (config: CosmosAdapterConfig) => {
-  const { adapterId, adapterName, dbCredentials, dbName, debugLogs = false, usePlural = false } = config;
+  const { adapterId, adapterName, dbCredentials, dbName, debugLogs = false, usePlural = false, tenantId } = config;
 
   // Create Cosmos instance with known tables including plugin tables
   const baseContainerNames = [
@@ -69,60 +74,52 @@ export const buildCosmosAdapter = async (config: CosmosAdapterConfig) => {
       void getFieldName;
       void getFieldAttributes;
 
-      console.log(`Cosmos Adapter initialized: ${adapterName} (ID: ${adapterId})`);
-
+      // Return adapter methods that dynamically get tenantId at runtime
       return {
-        create: async ({ model, data, select: _select }) => {
-          void _select;
-          console.log('COSMOS CREATE', model, data);
-          if (model === 'users') {
-            (data as any).tenantId = 'whereClaus';
-          }
-          return await cosmos.create(getModelName(model), data);
+        create: async <T>(params: { model: string; data: T; select?: string[]; tenantId?: string }) => {
+          const adapterInstance = new CosmosAdapter(cosmos, getModelName, params.tenantId || tenantId);
+          return adapterInstance.create({ ...params, data: params.data as Record<string, unknown> }) as Promise<T & { id: string }>;
         },
-        update: async ({ model, where, update }) => {
-          const existingItem = await cosmos.findOne(getModelName(model), queryBuilder({ where }));
-          const updatedItem = { ...(existingItem || {}), ...update };
-          return (await cosmos.update(getModelName(model), updatedItem)) as typeof update;
+        update: async <T>(data: { model: string; where: Required<Where>[]; update: T; tenantId?: string }) => {
+          const adapterInstance = new CosmosAdapter(cosmos, getModelName, data.tenantId || tenantId);
+          return adapterInstance.update({
+            ...data,
+            where: data.where as CleanedWhere[],
+            update: data.update as Record<string, unknown>,
+          }) as Promise<T | null>;
         },
-        updateMany: async ({ model, where, update }) => {
-          const existingItems = await cosmos.findMany(getModelName(model), queryBuilder({ where }));
-          const updated = await Promise.all(
-            existingItems.map(item => {
-              const updatedItem = { ...(item || {}), ...update };
-              return cosmos.update(getModelName(model), updatedItem);
-            }),
-          );
-          return updated.length;
+        updateMany: async (params: { model: string; where: CleanedWhere[]; update: Record<string, unknown>; tenantId?: string }) => {
+          const adapterInstance = new CosmosAdapter(cosmos, getModelName, params.tenantId || tenantId);
+          return adapterInstance.updateMany(params);
         },
-        delete: async ({ model, where }) => {
-          const existingItem = await cosmos.findOne(getModelName(model), queryBuilder({ where }));
-          if (existingItem) {
-            await cosmos.delete(getModelName(model), existingItem.id);
-          }
+        delete: async (params: { model: string; where: CleanedWhere[]; tenantId?: string }) => {
+          const adapterInstance = new CosmosAdapter(cosmos, getModelName, params.tenantId || tenantId);
+          return adapterInstance.delete(params);
         },
-        deleteMany: async ({ model, where }) => {
-          const existingItems = await cosmos.findMany(getModelName(model), queryBuilder({ where }));
-          const updated = await Promise.all(existingItems.map(item => cosmos.delete(getModelName(model), item.id)));
-          return updated.length;
+        deleteMany: async (params: { model: string; where: CleanedWhere[]; tenantId?: string }) => {
+          const adapterInstance = new CosmosAdapter(cosmos, getModelName, params.tenantId || tenantId);
+          return adapterInstance.deleteMany(params);
         },
-        findOne: async ({ model, select, where }) => {
-          where.push({
-            field: 'tenantId',
-            operator: 'eq',
-            value: 'whereClaus',
-            connector: 'AND',
-          });
-          const existingItem = await cosmos.findOne(getModelName(model), queryBuilder({ select, where }));
-          return existingItem;
+        findOne: async (params: { model: string; select?: string[]; where: CleanedWhere[]; tenantId?: string }) => {
+          console.log('findOne', params);
+          console.log('tenantId', params.tenantId);
+          const adapterInstance = new CosmosAdapter(cosmos, getModelName, params.tenantId || tenantId);
+          return adapterInstance.findOne(params);
         },
-        findMany: async ({ model, where, sortBy, offset, limit }) => {
-          const existingItems = await cosmos.findMany(getModelName(model), queryBuilder({ where, sortBy, offset, limit }));
-          return existingItems;
+        findMany: async (params: {
+          model: string;
+          where?: CleanedWhere[];
+          sortBy?: { field: string; direction: 'asc' | 'desc' };
+          offset?: number;
+          limit?: number;
+          tenantId?: string;
+        }) => {
+          const adapterInstance = new CosmosAdapter(cosmos, getModelName, params.tenantId || tenantId);
+          return adapterInstance.findMany(params);
         },
-        count: async ({ model, where }) => {
-          const existingItems = await cosmos.findMany(getModelName(model), queryBuilder({ where }));
-          return existingItems.length;
+        count: async (params: { model: string; where?: CleanedWhere[]; tenantId?: string }) => {
+          const adapterInstance = new CosmosAdapter(cosmos, getModelName, params.tenantId || tenantId);
+          return adapterInstance.count(params);
         },
       };
     },
