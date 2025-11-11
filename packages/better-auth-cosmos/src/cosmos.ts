@@ -37,7 +37,6 @@ export class Cosmos {
   }
 
   public async create<T extends ItemDefinition>(containerName: string, item: T) {
-    console.log('INNER CREATE', item);
     const container = this.getContainer(containerName);
     const created = await container.items.create(item);
     return created.resource!;

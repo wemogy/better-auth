@@ -1,6 +1,5 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { CosmosClientOptions } from '@azure/cosmos';
-import { createAdapterFactory, type DBAdapterDebugLogOption } from 'better-auth/adapters';
+import { createAdapterFactory, type DBAdapterDebugLogOption, type CustomAdapter } from 'better-auth/adapters';
 import { Cosmos } from './cosmos';
 import { CosmosAdapter } from './cosmosAdapter';
 export { CosmosAdapter };
@@ -88,7 +87,7 @@ export const buildCosmosAdapter = async (config: CosmosAdapterConfig) => {
       cosmosEnvironment.getModelName = getModelName;
       cosmosEnvironment.cosmos = cosmos;
 
-      return new CosmosAdapter(cosmos, getModelName, tenantId) as any;
+      return new CosmosAdapter(cosmos, getModelName, tenantId) as CustomAdapter;
     },
   });
 };

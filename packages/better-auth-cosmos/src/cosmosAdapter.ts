@@ -1,5 +1,3 @@
-/* eslint-disable no-console */
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { ItemDefinition } from '@azure/cosmos';
 import type { CleanedWhere, Where } from 'better-auth/adapters';
 import { Cosmos } from './cosmos';
@@ -18,13 +16,7 @@ export class CosmosAdapter {
 
   async create<T extends ItemDefinition>({ model, data, select: _select }: { model: string; data: T; select?: string[] }) {
     void _select;
-
-    console.log('CREATE called with tenantId:', this.tenantId);
-
     this.enrichDataWithTenantId(data);
-
-    console.log('cREATE', data);
-
     return await this.cosmos.create(this.getModelName(model), data);
   }
 
@@ -103,7 +95,7 @@ export class CosmosAdapter {
   private enrichDataWithTenantId<T extends ItemDefinition>(data: T): void {
     // Add tenantId to data if available
     if (this.tenantId) {
-      (data as any).tenantId = this.tenantId;
+      (data as T & { tenantId?: string }).tenantId = this.tenantId;
     }
   }
 

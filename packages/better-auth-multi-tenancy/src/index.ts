@@ -1,10 +1,8 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { createAuthMiddleware, createAuthEndpoint, APIError } from 'better-auth/api';
 import { getSessionFromCtx } from 'better-auth/api';
 import { createInternalAdapter } from 'better-auth/db';
 import type { BetterAuthPlugin } from 'better-auth';
-import { CosmosAdapter } from '@wemogy/better-auth-cosmos/src/cosmosAdapter';
-import { cosmosEnvironment } from '@wemogy/better-auth-cosmos';
+import { CosmosAdapter, cosmosEnvironment } from '@wemogy/better-auth-cosmos';
 
 export interface MultiTenancyOptions {
   /**
