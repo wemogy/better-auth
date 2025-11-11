@@ -3,6 +3,8 @@ import { createAuthMiddleware, createAuthEndpoint, APIError } from 'better-auth/
 import { getSessionFromCtx } from 'better-auth/api';
 import { createInternalAdapter } from 'better-auth/db';
 import type { BetterAuthPlugin } from 'better-auth';
+import { CosmosAdapter } from '@wemogy/better-auth-cosmos/src/cosmosAdapter';
+import { cosmosEnvironment } from '@wemogy/better-auth-cosmos';
 
 export interface MultiTenancyOptions {
   /**
@@ -46,13 +48,6 @@ export const multiTenancyPlugin = (options: MultiTenancyOptions = {}): BetterAut
     schema: {
       tenant: {
         fields: {
-          name: {
-            type: 'string',
-            required: true,
-          },
-          description: {
-            type: 'string',
-          },
           createdAt: {
             type: 'date',
           },
@@ -62,7 +57,8 @@ export const multiTenancyPlugin = (options: MultiTenancyOptions = {}): BetterAut
         fields: {
           [tenantField]: {
             type: 'string',
-            required: true,
+            // to avoid tenantId to be mandatory in the sign-up body we mark this as not required
+            required: false,
             references: {
               model: 'tenant',
               field: 'id',
@@ -182,89 +178,21 @@ export const multiTenancyPlugin = (options: MultiTenancyOptions = {}): BetterAut
           matcher: () => true,
           handler: createAuthMiddleware(async ctx => {
             // Extract tenantId from various sources
-            let tenantId = (ctx.context as Record<string, unknown>)?.tenantId as string | undefined;
+            const tenantId = ctx.request?.headers?.get('x-tenant-id') ?? undefined;
 
-            // If not already set, try to extract from route, headers, body, or query
-            if (!tenantId) {
-              tenantId =
-                extractTenantFromRoute(ctx.path) ||
-                ctx.request?.headers?.get('x-tenant-id') ||
-                ((ctx.body as Record<string, unknown>)?.tenantId as string | undefined) ||
-                (ctx.query?.tenantId as string | undefined);
-            }
-
-            // Validate tenantId for sign-up
-            if (!tenantId && ctx.path.startsWith('/sign-up/email')) {
-              throw new APIError('BAD_REQUEST', {
-                message: 'Tenant ID is required for user registration',
-              });
-            }
-
-            // Set up tenant-specific configuration if tenantId is available
-            if (tenantId) {
-              (ctx.context as Record<string, unknown>).tenantId = tenantId;
-
-              // Override the session cookie name to use tenant-specific cookie
-              const cookieName = getTenantCookieName(tenantId);
-              if (ctx.context.authCookies?.sessionToken) {
-                ctx.context.authCookies.sessionToken.name = cookieName;
-              }
-
-              // For sign-up, ensure tenantId is in the body for user creation
-              if (ctx.path.startsWith('/sign-up/email') && ctx.body) {
-                (ctx.body as Record<string, unknown>)[tenantField] = tenantId;
-              }
-            }
-
-            // For authenticated requests that don't have explicit tenantId,
-            // try to extract from session (but avoid for auth endpoints to prevent loops)
-            if (!tenantId && !ctx.path.startsWith('/sign-in') && !ctx.path.startsWith('/sign-up') && !ctx.path.startsWith('/get-session')) {
-              try {
-                // Temporarily set up cookie name for tenant extraction
-                const routeTenantId = extractTenantFromRoute(ctx.path) || ctx.request?.headers?.get('x-tenant-id');
-                if (routeTenantId) {
-                  const cookieName = getTenantCookieName(routeTenantId);
-                  if (ctx.context.authCookies?.sessionToken) {
-                    ctx.context.authCookies.sessionToken.name = cookieName;
-                  }
-                }
-
-                const session = await getSessionFromCtx(ctx);
-                if (session) {
-                  tenantId = session.session.activeTenantId || (session.user[tenantField as keyof typeof session.user] as string);
-                }
-              } catch (error) {
-                // Session might not be available or cookie issues, continue without tenantId
-                console.log('Could not extract tenantId from session in before-hook:', error);
-              }
-            }
-
-            console.log('beforeTenantId:', tenantId);
-            console.log('beforeTenantId - ctx.path:', ctx.path);
-            console.log('beforeTenantId - ctx.body:', ctx.body);
+            console.log('TENANT ->', tenantId);
 
             // Create a wrapped adapter that passes tenantId to all adapter methods
-            const wrappedAdapter = {
-              ...ctx.context.adapter,
-              create: async (params: any) => ctx.context.adapter.create({ ...params, tenantId }),
-              update: async (params: any) => ctx.context.adapter.update({ ...params, tenantId }),
-              updateMany: async (params: any) => ctx.context.adapter.updateMany({ ...params, tenantId }),
-              delete: async (params: any) => ctx.context.adapter.delete({ ...params, tenantId }),
-              deleteMany: async (params: any) => ctx.context.adapter.deleteMany({ ...params, tenantId }),
-              findOne: async (params: any) => ctx.context.adapter.findOne({ ...params, tenantId }),
-              findMany: async (params: any) => ctx.context.adapter.findMany({ ...params, tenantId }),
-              count: async (params: any) => ctx.context.adapter.count({ ...params, tenantId }),
-            } as any;
-
-            console.log(ctx.body);
+            const wrappedAdapter = new CosmosAdapter(cosmosEnvironment.cosmos as any, cosmosEnvironment.getModelName, tenantId);
 
             return {
               context: {
                 ...ctx,
                 context: {
                   ...ctx.context,
+                  tenantId,
                   adapter: wrappedAdapter,
-                  internalAdapter: createInternalAdapter(wrappedAdapter, {
+                  internalAdapter: createInternalAdapter(wrappedAdapter as any, {
                     options: ctx.context.options,
                     logger: ctx.context.logger,
                     hooks: ctx.context.hooks,
@@ -318,6 +246,8 @@ export const multiTenancyPlugin = (options: MultiTenancyOptions = {}): BetterAut
         {
           matcher: ctx => ctx.path.startsWith('/sign-in/email') || ctx.path.startsWith('/sign-up/email'),
           handler: createAuthMiddleware(async ctx => {
+            console.log('SCHEI?E ', ctx.context);
+            return;
             const tenantId = (ctx.context as Record<string, unknown>)?.tenantId as string | undefined;
 
             // Debug: Log if hook is executed
@@ -406,6 +336,7 @@ export const multiTenancyPlugin = (options: MultiTenancyOptions = {}): BetterAut
         {
           path: '/**',
           middleware: createAuthMiddleware(async ctx => {
+            return;
             // Skip for auth endpoints and multi-tenancy setup
             if (
               ctx.path.startsWith('/sign-in') ||

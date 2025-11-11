@@ -37,6 +37,7 @@ export class Cosmos {
   }
 
   public async create<T extends ItemDefinition>(containerName: string, item: T) {
+    console.log('INNER CREATE', item);
     const container = this.getContainer(containerName);
     const created = await container.items.create(item);
     return created.resource!;
@@ -48,16 +49,16 @@ export class Cosmos {
     return resource!;
   }
 
-  public async findOne(containerName: string, query: string) {
+  public async findOne<T extends ItemDefinition>(containerName: string, query: string) {
     const container = this.getContainer(containerName);
     const { resources } = await container.items.query(query).fetchAll();
-    return resources[0];
+    return resources[0] as T | undefined;
   }
 
-  public async findMany(containerName: string, query: string) {
+  public async findMany<T extends ItemDefinition>(containerName: string, query: string) {
     const container = this.getContainer(containerName);
     const { resources } = await container.items.query(query).fetchAll();
-    return resources;
+    return resources as T[];
   }
 
   public async delete(containerName: string, id: string) {

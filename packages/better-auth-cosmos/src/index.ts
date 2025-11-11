@@ -1,5 +1,6 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { CosmosClientOptions } from '@azure/cosmos';
-import { createAdapterFactory, type DBAdapterDebugLogOption, type CleanedWhere, type Where } from 'better-auth/adapters';
+import { createAdapterFactory, type DBAdapterDebugLogOption } from 'better-auth/adapters';
 import { Cosmos } from './cosmos';
 import { CosmosAdapter } from './cosmosAdapter';
 export { CosmosAdapter };
@@ -34,6 +35,16 @@ interface CosmosAdapterConfig {
    */
   tenantId?: string;
 }
+
+export const cosmosEnvironment: {
+  getModelName: (model: string) => string;
+  cosmos: Cosmos;
+} = {
+  getModelName: () => {
+    throw new Error('getModelName function not initialized');
+  },
+  cosmos: null as unknown as Cosmos,
+};
 
 export const buildCosmosAdapter = async (config: CosmosAdapterConfig) => {
   const { adapterId, adapterName, dbCredentials, dbName, debugLogs = false, usePlural = false, tenantId } = config;
@@ -74,54 +85,10 @@ export const buildCosmosAdapter = async (config: CosmosAdapterConfig) => {
       void getFieldName;
       void getFieldAttributes;
 
-      // Return adapter methods that dynamically get tenantId at runtime
-      return {
-        create: async <T>(params: { model: string; data: T; select?: string[]; tenantId?: string }) => {
-          const adapterInstance = new CosmosAdapter(cosmos, getModelName, params.tenantId || tenantId);
-          return adapterInstance.create({ ...params, data: params.data as Record<string, unknown> }) as Promise<T & { id: string }>;
-        },
-        update: async <T>(data: { model: string; where: Required<Where>[]; update: T; tenantId?: string }) => {
-          const adapterInstance = new CosmosAdapter(cosmos, getModelName, data.tenantId || tenantId);
-          return adapterInstance.update({
-            ...data,
-            where: data.where as CleanedWhere[],
-            update: data.update as Record<string, unknown>,
-          }) as Promise<T | null>;
-        },
-        updateMany: async (params: { model: string; where: CleanedWhere[]; update: Record<string, unknown>; tenantId?: string }) => {
-          const adapterInstance = new CosmosAdapter(cosmos, getModelName, params.tenantId || tenantId);
-          return adapterInstance.updateMany(params);
-        },
-        delete: async (params: { model: string; where: CleanedWhere[]; tenantId?: string }) => {
-          const adapterInstance = new CosmosAdapter(cosmos, getModelName, params.tenantId || tenantId);
-          return adapterInstance.delete(params);
-        },
-        deleteMany: async (params: { model: string; where: CleanedWhere[]; tenantId?: string }) => {
-          const adapterInstance = new CosmosAdapter(cosmos, getModelName, params.tenantId || tenantId);
-          return adapterInstance.deleteMany(params);
-        },
-        findOne: async (params: { model: string; select?: string[]; where: CleanedWhere[]; tenantId?: string }) => {
-          console.log('findOne', params);
-          console.log('tenantId', params.tenantId);
-          const adapterInstance = new CosmosAdapter(cosmos, getModelName, params.tenantId || tenantId);
-          return adapterInstance.findOne(params);
-        },
-        findMany: async (params: {
-          model: string;
-          where?: CleanedWhere[];
-          sortBy?: { field: string; direction: 'asc' | 'desc' };
-          offset?: number;
-          limit?: number;
-          tenantId?: string;
-        }) => {
-          const adapterInstance = new CosmosAdapter(cosmos, getModelName, params.tenantId || tenantId);
-          return adapterInstance.findMany(params);
-        },
-        count: async (params: { model: string; where?: CleanedWhere[]; tenantId?: string }) => {
-          const adapterInstance = new CosmosAdapter(cosmos, getModelName, params.tenantId || tenantId);
-          return adapterInstance.count(params);
-        },
-      };
+      cosmosEnvironment.getModelName = getModelName;
+      cosmosEnvironment.cosmos = cosmos;
+
+      return new CosmosAdapter(cosmos, getModelName, tenantId) as any;
     },
   });
 };
