@@ -178,10 +178,8 @@ export const multiTenancyPlugin = (options: MultiTenancyOptions = {}): BetterAut
             // Extract tenantId from various sources
             const tenantId = ctx.request?.headers?.get('x-tenant-id') ?? undefined;
 
-            console.log('TENANT ->', tenantId);
-
             // Create a wrapped adapter that passes tenantId to all adapter methods
-            const wrappedAdapter = new CosmosAdapter(cosmosEnvironment.cosmos as any, cosmosEnvironment.getModelName, tenantId);
+            const wrappedAdapter = new CosmosAdapter(cosmosEnvironment.cosmos, cosmosEnvironment.getModelName, tenantId);
 
             return {
               context: {
@@ -190,7 +188,7 @@ export const multiTenancyPlugin = (options: MultiTenancyOptions = {}): BetterAut
                   ...ctx.context,
                   tenantId,
                   adapter: wrappedAdapter,
-                  internalAdapter: createInternalAdapter(wrappedAdapter as any, {
+                  internalAdapter: createInternalAdapter(wrappedAdapter as unknown as typeof ctx.context.adapter, {
                     options: ctx.context.options,
                     logger: ctx.context.logger,
                     hooks: ctx.context.hooks,
@@ -244,8 +242,6 @@ export const multiTenancyPlugin = (options: MultiTenancyOptions = {}): BetterAut
         {
           matcher: ctx => ctx.path.startsWith('/sign-in/email') || ctx.path.startsWith('/sign-up/email'),
           handler: createAuthMiddleware(async ctx => {
-            console.log('SCHEI?E ', ctx.context);
-            return;
             const tenantId = (ctx.context as Record<string, unknown>)?.tenantId as string | undefined;
 
             // Debug: Log if hook is executed
@@ -334,7 +330,6 @@ export const multiTenancyPlugin = (options: MultiTenancyOptions = {}): BetterAut
         {
           path: '/**',
           middleware: createAuthMiddleware(async ctx => {
-            return;
             // Skip for auth endpoints and multi-tenancy setup
             if (
               ctx.path.startsWith('/sign-in') ||
