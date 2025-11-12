@@ -24,9 +24,10 @@ export function useSwitchTenant(): UseSwitchTenantReturn {
       setError(null)
 
       if (!checkMultiTenancyPlugin(authClient)) {
-        throw new Error(
+        setError(
           'Multi-tenancy plugin is not active. Enable multiTenancyPlugin() on the server.',
         )
+        return
       }
 
       await authClient.multiTenancy!.switchTenant({ tenantId })

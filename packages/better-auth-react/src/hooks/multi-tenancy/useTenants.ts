@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useAuthClient } from '../useAuthClient'
 import type { AuthClient, Tenant } from '../../types/auth-client'
 
@@ -20,7 +20,7 @@ export function useTenants(): UseTenantsReturn {
 
   const authClient: AuthClient = useAuthClient()
 
-  const fetchTenants = async () => {
+  const fetchTenants = useCallback(async () => {
     try {
       setIsLoading(true)
       setError(null)
@@ -40,11 +40,11 @@ export function useTenants(): UseTenantsReturn {
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [authClient])
 
   useEffect(() => {
     fetchTenants()
-  }, [authClient])
+  }, [fetchTenants])
 
   return {
     tenants,

@@ -23,15 +23,17 @@ export function useCreateTenant(): UseCreateTenantReturn {
   const authClient: AuthClient = useAuthClient()
 
   const createTenant = async (data: CreateTenantData): Promise<Tenant> => {
+    // Handle validation before try block to avoid throw/catch cycle
+    if (!checkMultiTenancyPlugin(authClient)) {
+      const errorMessage =
+        'Multi-tenancy plugin is not active. Enable multiTenancyPlugin() on the server.'
+      setError(errorMessage)
+      throw new Error(errorMessage)
+    }
+
     try {
       setIsLoading(true)
       setError(null)
-
-      if (!checkMultiTenancyPlugin(authClient)) {
-        throw new Error(
-          'Multi-tenancy plugin is not active. Enable multiTenancyPlugin() on the server.',
-        )
-      }
 
       const result = await authClient.multiTenancy!.createTenant(data)
       return result.tenant
