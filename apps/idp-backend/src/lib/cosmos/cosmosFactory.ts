@@ -27,7 +27,7 @@ export class CosmosFactory {
     logger.info('Initializing Cosmos DB client', {
       endpoint: config.endpoint,
       databaseId: config.databaseId,
-      defaultContainerId: config.defaultContainerId
+      defaultContainerId: config.defaultContainerId,
     });
 
     this.config = {
@@ -68,14 +68,18 @@ export class CosmosFactory {
 
     try {
       const client = this.getInstance();
-      const repository = new CosmosRepository<T & { id: string; createdAt?: Date; updatedAt?: Date; version?: number }>(client, containerId, partitionKey);
+      const repository = new CosmosRepository<T & { id: string; createdAt?: Date; updatedAt?: Date; version?: number }>(
+        client,
+        containerId,
+        partitionKey,
+      );
       logger.info('Cosmos repository created successfully', { containerId, partitionKey });
       return repository;
     } catch (error) {
       logger.error('Failed to create Cosmos repository', {
         containerId,
         partitionKey,
-        error: error instanceof Error ? error.message : String(error)
+        error: error instanceof Error ? error.message : String(error),
       });
       throw error;
     }
@@ -120,7 +124,7 @@ export function initializeCosmosFromEnv(): CosmosClientManager {
       hasEndpoint: !!endpoint,
       hasKey: !!key,
       hasDatabaseId: !!databaseId,
-      hasDefaultContainerId: !!defaultContainerId
+      hasDefaultContainerId: !!defaultContainerId,
     });
     throw new Error('Missing required environment variables: COSMOS_DB_ENDPOINT, COSMOS_DB_KEY, COSMOS_DB_DATABASE_ID');
   }
