@@ -61,3 +61,26 @@ jobs:
           name: Version ${{ needs.get-version.outputs.next-version }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  docker-build:
+    name: Build and push Docker image
+    runs-on: ubuntu-latest
+    needs:
+      - get-version
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build and push idp-backend to Azure Container Registry
+        uses: ./.github/actions/containers
+        with:
+          container-registry-server: ${{ secrets.AZURE_CONTAINER_REGISTRY_SERVER }}
+          container-registry-username: ${{ secrets.AZURE_CONTAINER_REGISTRY_USERNAME }}
+          container-registry-password: ${{ secrets.AZURE_CONTAINER_REGISTRY_PASSWORD }}
+          wemogy-packages-token: ${{ secrets.WEMOGY_PACKAGES_TOKEN }}
+          version: ${{ needs.get-version.outputs.next-version }}
+          push: true
+          dockerfile-path: 'apps/idp-backend'
+          context-path: '.'
+          image-name: 'better-auth-cosmos/idp-backend'
