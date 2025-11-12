@@ -60,8 +60,8 @@ export class CosmosAdapter {
 
   async findOne<T extends ItemDefinition>({ model, select, where }: { model: string; select?: string[]; where: CleanedWhere[] }) {
     where = this.enrichWhereWithTenantId(where);
-    const existingItem = await this.cosmos.findOne<T>(this.getModelName(model), queryBuilder({ select, where }));
-    return existingItem;
+
+    return await this.cosmos.findOne<T>(this.getModelName(model), queryBuilder({ select, where }));
   }
 
   async findMany<T extends ItemDefinition>({
@@ -79,8 +79,7 @@ export class CosmosAdapter {
   }) {
     where = this.enrichWhereWithTenantId(where);
 
-    const existingItems = await this.cosmos.findMany<T>(this.getModelName(model), queryBuilder({ where, sortBy, offset, limit }));
-    return existingItems;
+    return await this.cosmos.findMany<T>(this.getModelName(model), queryBuilder({ where, sortBy, offset, limit }));
   }
 
   async count({ model, where }: { model: string; where?: CleanedWhere[] }) {
