@@ -1,5 +1,6 @@
 import { CosmosClientManager, type CosmosConfig } from './cosmosClient.js';
 import { CosmosRepository } from './cosmosRepository.js';
+import logger from '../logger/logger.js';
 
 export interface CosmosFactoryConfig {
   endpoint: string;
@@ -23,6 +24,12 @@ export class CosmosFactory {
       throw new Error('CosmosFactory is already initialized. Call getInstance() instead.');
     }
 
+    logger.info('Initializing Cosmos DB client', {
+      endpoint: config.endpoint,
+      databaseId: config.databaseId,
+      defaultContainerId: config.defaultContainerId
+    });
+
     this.config = {
       endpoint: config.endpoint,
       key: config.key,
@@ -30,8 +37,14 @@ export class CosmosFactory {
       defaultContainerId: config.defaultContainerId,
     };
 
-    this.instance = new CosmosClientManager(this.config);
-    return this.instance;
+    try {
+      this.instance = new CosmosClientManager(this.config);
+      logger.info('Cosmos DB client initialized successfully');
+      return this.instance;
+    } catch (error) {
+      logger.error('Failed to initialize Cosmos DB client', { error: error instanceof Error ? error.message : String(error) });
+      throw error;
+    }
   }
 
   /**
@@ -51,8 +64,21 @@ export class CosmosFactory {
     containerId: string,
     partitionKey: string = '/id',
   ): CosmosRepository<T & { id: string; createdAt?: Date; updatedAt?: Date; version?: number }> {
-    const client = this.getInstance();
-    return new CosmosRepository(client, containerId, partitionKey);
+    logger.debug('Creating Cosmos repository', { containerId, partitionKey });
+
+    try {
+      const client = this.getInstance();
+      const repository = new CosmosRepository<T & { id: string; createdAt?: Date; updatedAt?: Date; version?: number }>(client, containerId, partitionKey);
+      logger.info('Cosmos repository created successfully', { containerId, partitionKey });
+      return repository;
+    } catch (error) {
+      logger.error('Failed to create Cosmos repository', {
+        containerId,
+        partitionKey,
+        error: error instanceof Error ? error.message : String(error)
+      });
+      throw error;
+    }
   }
 
   /**
@@ -82,14 +108,24 @@ export class CosmosFactory {
  * Convenience function to initialize the factory with environment variables
  */
 export function initializeCosmosFromEnv(): CosmosClientManager {
+  logger.info('Initializing Cosmos DB from environment variables');
+
   const endpoint = process.env.COSMOS_DB_ENDPOINT;
   const key = process.env.COSMOS_DB_KEY;
   const databaseId = process.env.COSMOS_DB_DATABASE_ID;
   const defaultContainerId = process.env.COSMOS_DB_CONTAINER_ID;
 
   if (!endpoint || !key || !databaseId) {
+    logger.error('Missing required environment variables for Cosmos DB', {
+      hasEndpoint: !!endpoint,
+      hasKey: !!key,
+      hasDatabaseId: !!databaseId,
+      hasDefaultContainerId: !!defaultContainerId
+    });
     throw new Error('Missing required environment variables: COSMOS_DB_ENDPOINT, COSMOS_DB_KEY, COSMOS_DB_DATABASE_ID');
   }
+
+  logger.info('Environment variables validated, proceeding with Cosmos DB initialization');
 
   return CosmosFactory.initialize({
     endpoint,

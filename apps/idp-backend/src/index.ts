@@ -2,6 +2,7 @@ import { config } from 'dotenv';
 config();
 import { serve } from '@hono/node-server';
 import { Hono } from 'hono';
+import logger from './lib/logger/logger.js';
 import { swaggerUI } from '@hono/swagger-ui';
 import { initializeCosmosFromEnv } from './lib/cosmos/cosmosFactory.js';
 
@@ -11,6 +12,15 @@ initializeCosmosFromEnv();
 import tenantRoutes from './routes/tenantRoutes.js';
 
 const app = new Hono();
+
+// Add custom logger middleware
+app.use('*', async (c, next) => {
+  const start = Date.now();
+  await next();
+  const ms = Date.now() - start;
+
+  logger.http(`${c.req.method} ${c.req.path} - ${c.res.status} - ${ms}ms`);
+});
 
 // Mount tenant routes
 app.route('/tenants', tenantRoutes);
@@ -92,6 +102,6 @@ serve(
     port: 3002,
   },
   info => {
-    console.log(`Server is running on http://localhost:${info.port}`);
+    logger.info(`Server is running on http://localhost:${info.port}`);
   },
 );
