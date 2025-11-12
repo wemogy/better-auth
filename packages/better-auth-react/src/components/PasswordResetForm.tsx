@@ -1,12 +1,13 @@
 import { useState } from 'react'
-import { useAuthClient } from '../AuthProvider'
+import { useAuthClient } from '../hooks/useAuthClient'
+import type { AuthClient } from '../types/auth-client'
 
 interface PasswordResetFormProps {
   className?: string
 }
 
 export function PasswordResetForm({ className = '' }: PasswordResetFormProps) {
-  const authClient = useAuthClient()
+  const authClient: AuthClient = useAuthClient()
   const [email, setEmail] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [message, setMessage] = useState('')

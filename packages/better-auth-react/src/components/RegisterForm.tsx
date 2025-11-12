@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { useAuthClient } from '../AuthProvider'
+import { useAuthClient } from '../hooks/useAuthClient'
+import type { AuthClient } from '../types/auth-client'
 
 interface RegisterFormProps {
   className?: string
@@ -12,7 +13,7 @@ export function RegisterForm({
   tenantId,
   onSuccess,
 }: RegisterFormProps) {
-  const authClient = useAuthClient()
+  const authClient: AuthClient = useAuthClient()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [name, setName] = useState('')

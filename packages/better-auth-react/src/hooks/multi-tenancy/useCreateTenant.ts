@@ -1,17 +1,10 @@
 import { useState } from 'react'
-import { useAuthClient } from '../../AuthProvider'
-
-interface CreateTenantData {
-  name: string
-  description?: string
-}
-
-interface Tenant {
-  id: string
-  name: string
-  description?: string
-  createdAt: string
-}
+import { useAuthClient } from '../useAuthClient'
+import type {
+  AuthClient,
+  CreateTenantData,
+  Tenant,
+} from '../../types/auth-client'
 
 interface UseCreateTenantReturn {
   createTenant: (data: CreateTenantData) => Promise<Tenant>
@@ -19,15 +12,15 @@ interface UseCreateTenantReturn {
   error: string | null
 }
 
-function checkMultiTenancyPlugin(authClient: any): boolean {
-  return authClient?.$plugins?.some((p: any) => p.id === 'multi-tenancy')
+function checkMultiTenancyPlugin(authClient: AuthClient): boolean {
+  return authClient?.$plugins?.some((p) => p.id === 'multi-tenancy') ?? false
 }
 
 export function useCreateTenant(): UseCreateTenantReturn {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const authClient = useAuthClient()
+  const authClient: AuthClient = useAuthClient()
 
   const createTenant = async (data: CreateTenantData): Promise<Tenant> => {
     try {
@@ -40,7 +33,7 @@ export function useCreateTenant(): UseCreateTenantReturn {
         )
       }
 
-      const result = await authClient.multiTenancy.createTenant(data)
+      const result = await authClient.multiTenancy!.createTenant(data)
       return result.tenant
     } catch (err) {
       const errorMessage =

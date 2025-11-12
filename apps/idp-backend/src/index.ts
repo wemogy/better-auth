@@ -1,15 +1,15 @@
 import { config } from 'dotenv';
-config();
 import { serve } from '@hono/node-server';
 import { Hono } from 'hono';
 import logger from './lib/logger/logger.js';
 import { swaggerUI } from '@hono/swagger-ui';
-import { initializeCosmosFromEnv } from './lib/cosmos/cosmosFactory.js';
+import { CosmosFactory, initializeCosmosFromEnv } from './lib/cosmos/index.ts';
+import tenantRoutes from './routes/tenantRoutes.js';
+
+config();
 
 // Initialize Cosmos DB
 initializeCosmosFromEnv();
-
-import tenantRoutes from './routes/tenantRoutes.js';
 
 const app = new Hono();
 
@@ -20,6 +20,62 @@ app.use('*', async (c, next) => {
   const ms = Date.now() - start;
 
   logger.http(`${c.req.method} ${c.req.path} - ${c.res.status} - ${ms}ms`);
+});
+
+// Health check endpoint
+app.get('/health', async c => {
+  try {
+    const cosmosFactory = CosmosFactory.isInitialized();
+    const cosmosConfig = CosmosFactory.getConfig();
+
+    const health: any = {
+      status: 'healthy',
+      timestamp: new Date().toISOString(),
+      service: 'idp-backend',
+      version: '1.0.0',
+      checks: {
+        cosmos: {
+          status: cosmosFactory ? 'healthy' : 'unhealthy',
+          initialized: cosmosFactory,
+          config: cosmosConfig
+            ? {
+                databaseId: cosmosConfig.databaseId,
+                hasEndpoint: !!cosmosConfig.endpoint,
+                hasDefaultContainer: !!cosmosConfig.defaultContainerId,
+              }
+            : null,
+        },
+      },
+    };
+
+    // Test Cosmos DB connectivity if initialized
+    if (cosmosFactory && cosmosConfig) {
+      try {
+        const client = CosmosFactory.getInstance();
+        await client.getDatabase().read();
+        health.checks.cosmos.status = 'healthy';
+        health.checks.cosmos.connectivity = 'connected';
+      } catch (error) {
+        health.checks.cosmos.status = 'unhealthy';
+        health.checks.cosmos.connectivity = 'disconnected';
+        health.checks.cosmos.error = error instanceof Error ? error.message : 'Unknown error';
+        health.status = 'degraded';
+      }
+    } else {
+      health.status = 'degraded';
+    }
+
+    const statusCode = health.status === 'healthy' ? 200 : 503;
+    return c.json(health, statusCode);
+  } catch (error) {
+    const unhealthyHealth = {
+      status: 'unhealthy',
+      timestamp: new Date().toISOString(),
+      service: 'idp-backend',
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+    return c.json(unhealthyHealth, 503);
+  }
 });
 
 // Mount tenant routes
@@ -37,14 +93,37 @@ app.get('/doc', c => {
       version: '1.0.0',
       description: 'API for managing tenants',
     },
+    tags: [
+      {
+        name: 'Health',
+        description: 'Health check endpoints',
+      },
+      {
+        name: 'Tenants',
+        description: 'Tenant management endpoints',
+      },
+    ],
     paths: {
+      '/health': {
+        get: {
+          summary: 'Health check',
+          description: 'Check the health status of the service and its dependencies',
+          tags: ['Health'],
+          responses: {
+            200: { description: 'Service healthy' },
+            503: { description: 'Service unhealthy or degraded' },
+          },
+        },
+      },
       '/tenants': {
         get: {
           summary: 'List tenants',
+          tags: ['Tenants'],
           responses: { 200: { description: 'Success' } },
         },
         post: {
           summary: 'Create tenant',
+          tags: ['Tenants'],
           requestBody: { content: { 'application/json': { schema: { $ref: '#/components/schemas/Tenant' } } } },
           responses: { 201: { description: 'Created' } },
         },
@@ -52,26 +131,22 @@ app.get('/doc', c => {
       '/tenants/{id}': {
         get: {
           summary: 'Get tenant by ID',
+          tags: ['Tenants'],
           parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
           responses: { 200: { description: 'Success' } },
         },
         put: {
           summary: 'Update tenant',
+          tags: ['Tenants'],
           parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
           requestBody: { content: { 'application/json': { schema: { $ref: '#/components/schemas/Tenant' } } } },
           responses: { 200: { description: 'Success' } },
         },
         delete: {
           summary: 'Delete tenant',
+          tags: ['Tenants'],
           parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
           responses: { 200: { description: 'Deleted' } },
-        },
-      },
-      '/tenants/name/{name}': {
-        get: {
-          summary: 'Get tenant by name',
-          parameters: [{ name: 'name', in: 'path', required: true, schema: { type: 'string' } }],
-          responses: { 200: { description: 'Success' } },
         },
       },
     },
@@ -99,7 +174,7 @@ app.get('/', c => {
 serve(
   {
     fetch: app.fetch,
-    port: 3002,
+    port: Number(process.env.PORT) || 3002,
   },
   info => {
     logger.info(`Server is running on http://localhost:${info.port}`);

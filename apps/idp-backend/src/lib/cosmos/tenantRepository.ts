@@ -17,17 +17,4 @@ export class TenantRepository extends CosmosRepository<Tenant> {
   async initialize(throughput?: number): Promise<void> {
     await super.initialize(throughput);
   }
-
-  /**
-   * Finds a tenant by name
-   */
-  async findByName(name: string): Promise<Tenant | null> {
-    const query = {
-      query: 'SELECT * FROM tenants t WHERE t.name = @name',
-      parameters: [{ name: '@name', value: name }],
-    };
-
-    const result = await this.query(query);
-    return result.items.length > 0 ? result.items[0] : null;
-  }
 }

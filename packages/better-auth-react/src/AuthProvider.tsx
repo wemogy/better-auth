@@ -1,14 +1,10 @@
-import { createContext, useContext, type ReactNode } from 'react'
-
-interface AuthContextType {
-  authClient: any
-}
-
-const AuthContext = createContext<AuthContextType | null>(null)
+import { type ReactNode } from 'react'
+import type { AuthClient } from './types/auth-client'
+import { AuthContext } from './hooks/useAuthClient'
 
 interface AuthProviderProps {
   children: ReactNode
-  authClient: any
+  authClient: AuthClient
 }
 
 export function AuthProvider({ children, authClient }: AuthProviderProps) {
@@ -17,12 +13,4 @@ export function AuthProvider({ children, authClient }: AuthProviderProps) {
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
-}
-
-export function useAuthClient(): any {
-  const context = useContext(AuthContext)
-  if (!context) {
-    throw new Error('useAuthClient must be used within an AuthProvider')
-  }
-  return context.authClient
 }

@@ -150,11 +150,4 @@ export class CosmosRepository<T extends BaseEntity> {
     const result = await this.query(query);
     return result.items[0] as unknown as number;
   }
-
-  /**
-   * Checks if an item exists by ID
-   */
-  async exists(id: string, partitionKey?: string): Promise<boolean> {
-    return (await this.findById(id, partitionKey)) !== null;
-  }
 }

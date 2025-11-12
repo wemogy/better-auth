@@ -1,17 +1,13 @@
 import { useEffect, useState } from 'react'
-import { useAuthClient } from '../AuthProvider'
-
-interface User {
-  id: string
-  email: string
-  name?: string
-}
+import { useAuthClient } from './useAuthClient'
+import type { AuthClient } from '../types/auth-client'
+import type { User } from 'better-auth'
 
 export function useUser() {
   const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
-  const authClient = useAuthClient()
+  const authClient: AuthClient = useAuthClient()
 
   useEffect(() => {
     const checkUser = async () => {

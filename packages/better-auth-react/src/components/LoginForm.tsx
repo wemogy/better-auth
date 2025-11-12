@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { useAuthClient } from '../AuthProvider'
+import { useAuthClient } from '../hooks/useAuthClient'
+import type { AuthClient } from '../types/auth-client'
 
 interface LoginFormProps {
   className?: string
@@ -12,7 +13,7 @@ export function LoginForm({
   tenantId,
   onSuccess,
 }: LoginFormProps) {
-  const authClient = useAuthClient()
+  const authClient: AuthClient = useAuthClient()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [isLoading, setIsLoading] = useState(false)

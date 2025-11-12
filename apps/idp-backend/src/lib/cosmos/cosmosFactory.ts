@@ -1,5 +1,4 @@
 import { CosmosClientManager, type CosmosConfig } from './cosmosClient.js';
-import { CosmosRepository } from './cosmosRepository.js';
 import logger from '../logger/logger.js';
 
 export interface CosmosFactoryConfig {
@@ -58,34 +57,6 @@ export class CosmosFactory {
   }
 
   /**
-   * Creates a repository for a specific entity type
-   */
-  static createRepository<T extends { id: string }>(
-    containerId: string,
-    partitionKey: string = '/id',
-  ): CosmosRepository<T & { id: string; createdAt?: Date; updatedAt?: Date; version?: number }> {
-    logger.debug('Creating Cosmos repository', { containerId, partitionKey });
-
-    try {
-      const client = this.getInstance();
-      const repository = new CosmosRepository<T & { id: string; createdAt?: Date; updatedAt?: Date; version?: number }>(
-        client,
-        containerId,
-        partitionKey,
-      );
-      logger.info('Cosmos repository created successfully', { containerId, partitionKey });
-      return repository;
-    } catch (error) {
-      logger.error('Failed to create Cosmos repository', {
-        containerId,
-        partitionKey,
-        error: error instanceof Error ? error.message : String(error),
-      });
-      throw error;
-    }
-  }
-
-  /**
    * Checks if the factory is initialized
    */
   static isInitialized(): boolean {
@@ -97,14 +68,6 @@ export class CosmosFactory {
    */
   static getConfig(): CosmosConfig | null {
     return this.config;
-  }
-
-  /**
-   * Resets the factory (for testing purposes)
-   */
-  static reset(): void {
-    this.instance = null;
-    this.config = null;
   }
 }
 

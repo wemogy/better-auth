@@ -30,8 +30,10 @@ export function TwoFactorSetup({
     try {
       const data = await onSetup()
       setTwoFactorData(data)
-    } catch (err: any) {
-      setError(err.message || 'Failed to setup 2FA')
+    } catch (err: unknown) {
+      const errorMessage =
+        err instanceof Error ? err.message : 'Failed to setup 2FA'
+      setError(errorMessage)
     } finally {
       setIsLoading(false)
     }
@@ -48,8 +50,9 @@ export function TwoFactorSetup({
     try {
       await onVerify(code)
       setStep('complete')
-    } catch (err: any) {
-      setError(err.message || 'Invalid code')
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Invalid code'
+      setError(errorMessage)
     } finally {
       setIsLoading(false)
     }

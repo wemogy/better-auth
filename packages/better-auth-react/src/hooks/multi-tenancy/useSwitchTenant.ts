@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { useAuthClient } from '../../AuthProvider'
+import { useAuthClient } from '../useAuthClient'
+import type { AuthClient } from '../../types/auth-client'
 
 interface UseSwitchTenantReturn {
   switchTenant: (tenantId: string) => Promise<void>
@@ -7,15 +8,15 @@ interface UseSwitchTenantReturn {
   error: string | null
 }
 
-function checkMultiTenancyPlugin(authClient: any): boolean {
-  return authClient?.$plugins?.some((p: any) => p.id === 'multi-tenancy')
+function checkMultiTenancyPlugin(authClient: AuthClient): boolean {
+  return authClient?.$plugins?.some((p) => p.id === 'multi-tenancy') ?? false
 }
 
 export function useSwitchTenant(): UseSwitchTenantReturn {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const authClient = useAuthClient()
+  const authClient: AuthClient = useAuthClient()
 
   const switchTenant = async (tenantId: string): Promise<void> => {
     try {
@@ -28,12 +29,11 @@ export function useSwitchTenant(): UseSwitchTenantReturn {
         )
       }
 
-      await authClient.multiTenancy.switchTenant({ tenantId })
+      await authClient.multiTenancy!.switchTenant({ tenantId })
     } catch (err) {
       const errorMessage =
         err instanceof Error ? err.message : 'Failed to switch tenant'
       setError(errorMessage)
-      throw new Error(errorMessage)
     } finally {
       setIsLoading(false)
     }

@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { TenantRepository } from '../lib/cosmos/tenantRepository.js';
+import { TenantRepository } from '../lib/cosmos/index.ts';
 import { createTenantSchema, updateTenantSchema } from '../lib/schemas.js';
 
 const tenantRoutes = new Hono();
@@ -31,22 +31,6 @@ tenantRoutes.get('/:id', async c => {
   try {
     const repo = await getTenantRepo();
     const tenant = await repo.findById(id);
-    if (!tenant) {
-      return c.json({ error: 'Tenant not found' }, 404);
-    }
-    return c.json(tenant);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unknown error';
-    return c.json({ error: message }, 500);
-  }
-});
-
-// GET /tenants/name/:name - Find tenant by name
-tenantRoutes.get('/name/:name', async c => {
-  const name = c.req.param('name');
-  try {
-    const repo = await getTenantRepo();
-    const tenant = await repo.findByName(name);
     if (!tenant) {
       return c.json({ error: 'Tenant not found' }, 404);
     }

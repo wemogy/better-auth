@@ -1,11 +1,12 @@
 import { useState } from 'react'
-import { useAuthClient } from '../AuthProvider'
+import { useAuthClient } from './useAuthClient'
+import type { AuthClient } from '../types/auth-client'
 
 export function useSignout() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const authClient = useAuthClient()
+  const authClient: AuthClient = useAuthClient()
 
   const signOut = async () => {
     setIsLoading(true)
@@ -16,7 +17,6 @@ export function useSignout() {
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to sign out'
       setError(message)
-      throw err
     } finally {
       setIsLoading(false)
     }
