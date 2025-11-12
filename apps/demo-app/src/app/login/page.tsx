@@ -1,16 +1,16 @@
 'use client';
 
-import { LoginForm } from '@wemogy/better-auth-react';
+import { LoginFormClient } from '@/components/LoginFormClient';
 import { getTenantIdFromHostname } from '@/lib/subdomain';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useUser } from '@wemogy/better-auth-react';
+import { useUserClient } from '@/hooks/useUserClient';
 import { useEffect } from 'react';
 
 export default function LoginPage() {
   const tenantId = getTenantIdFromHostname();
   const router = useRouter();
-  const { user } = useUser();
+  const { user } = useUserClient();
 
   // Redirect if already logged in
   useEffect(() => {
@@ -28,10 +28,10 @@ export default function LoginPage() {
             Tenant: <span className="font-medium">{tenantId}</span>
           </p>
         )}
-        <LoginForm />
+        <LoginFormClient />
         <div className="mt-6 text-center">
           <Link href="/register" className="text-sm text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200 transition-colors">
-            Don&apos;t have an account? Sign up
+            Don't have an account? Sign up
           </Link>
         </div>
       </div>

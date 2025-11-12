@@ -1,11 +1,11 @@
 'use client';
 
-import { useUser } from '@wemogy/better-auth-react';
+import { useUserClient } from '@/hooks/useUserClient';
 import Link from 'next/link';
 import { getTenantIdFromHostname, getSubdomain } from '@/lib/subdomain';
 
 export default function Home() {
-  const { user, isLoading } = useUser();
+  const { user, isLoading } = useUserClient();
   const tenantId = getTenantIdFromHostname();
   const subdomain = typeof window !== 'undefined' ? getSubdomain(window.location.hostname) : undefined;
 
