@@ -141,13 +141,4 @@ export class CosmosRepository<T extends BaseEntity> {
     const query = 'SELECT * FROM c';
     return this.query(query, options);
   }
-
-  /**
-   * Counts all items
-   */
-  async count(): Promise<number> {
-    const query = 'SELECT VALUE COUNT(1) FROM c';
-    const result = await this.query(query);
-    return result.items[0] as unknown as number;
-  }
 }

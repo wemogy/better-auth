@@ -1,7 +1,6 @@
 'use client';
 
-import { useUser, useSignout } from '@wemogy/better-auth-react';
-import { TenantSelector } from '@wemogy/better-auth-react';
+import { useSignout, useUser } from '@wemogy/better-auth-react';
 import Link from 'next/link';
 import { getTenantIdFromHostname } from '@/lib/subdomain';
 
@@ -50,9 +49,7 @@ export default function DashboardPage() {
             <p className="text-lg font-medium text-black dark:text-zinc-50">{user.name || 'Not set'}</p>
           </div>
         </div>
-        <div className="mb-6">
-          <TenantSelector showCreateButton={false} />
-        </div>
+        <div className="mb-6"></div>
         <button onClick={() => signOut()} className="rounded-full bg-red-600 px-5 py-2 text-white transition-colors hover:bg-red-700">
           Sign Out
         </button>

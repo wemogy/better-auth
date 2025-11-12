@@ -5,8 +5,8 @@ import { queryBuilder } from './util/queryBuilder';
 
 export class CosmosAdapter {
   private cosmos: Cosmos;
-  private getModelName: (model: string) => string;
-  private tenantId?: string;
+  private readonly getModelName: (model: string) => string;
+  private readonly tenantId?: string;
 
   constructor(cosmos: Cosmos, getModelName: (model: string) => string, tenantId?: string) {
     this.cosmos = cosmos;

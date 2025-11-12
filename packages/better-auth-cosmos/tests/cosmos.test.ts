@@ -1,5 +1,5 @@
 import { CosmosClient } from '@azure/cosmos';
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Cosmos } from '../src/cosmos';
 
 // Mock the @azure/cosmos module
@@ -64,6 +64,8 @@ describe('Cosmos Class', () => {
     mockContainer = {
       items: mockItems,
       item: vi.fn().mockImplementation((id: string, partitionKey: string) => ({
+        _partitionKey: partitionKey,
+        _id: id,
         delete: vi.fn().mockResolvedValue({}),
       })),
     };

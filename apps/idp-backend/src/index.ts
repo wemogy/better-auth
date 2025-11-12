@@ -23,7 +23,7 @@ app.use('*', async (c, next) => {
 });
 
 // Health check endpoint
-app.get('/health', async c => {
+app.get('/healthz', async c => {
   try {
     const cosmosFactory = CosmosFactory.isInitialized();
     const cosmosConfig = CosmosFactory.getConfig();
@@ -104,7 +104,7 @@ app.get('/doc', c => {
       },
     ],
     paths: {
-      '/health': {
+      '/healthz': {
         get: {
           summary: 'Health check',
           description: 'Check the health status of the service and its dependencies',

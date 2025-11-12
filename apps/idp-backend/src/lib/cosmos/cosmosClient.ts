@@ -1,4 +1,4 @@
-import { CosmosClient, Database, Container } from '@azure/cosmos';
+import { Container, CosmosClient, Database } from '@azure/cosmos';
 
 export interface CosmosConfig {
   endpoint: string;
@@ -8,8 +8,8 @@ export interface CosmosConfig {
 }
 
 export class CosmosClientManager {
-  private client: CosmosClient;
-  private database: Database;
+  private readonly client: CosmosClient;
+  private readonly database: Database;
   private config: CosmosConfig;
 
   constructor(config: CosmosConfig) {
