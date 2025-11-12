@@ -15,21 +15,24 @@ export class Cosmos {
       instance.database = database;
     }
     if (instance.database && containerNames) {
-      const pluralize = (word: string): string => {
-        if (!usePlural) return word;
-        // Simple pluralization rules
-        if (word.endsWith('s') || word.endsWith('sh') || word.endsWith('ch') || word.endsWith('x') || word.endsWith('z')) {
-          return word + 'es';
-        }
-        if (word.endsWith('y') && !/[aeiou]y$/.test(word)) {
-          return word.slice(0, -1) + 'ies';
-        }
-        return word + 's';
-      };
-      const pluralizedNames = containerNames.map(name => pluralize(name));
-      await Promise.all(pluralizedNames.map(name => instance.database.containers.createIfNotExists({ id: name, partitionKey: { paths: ['/id'] } })));
+      await instance.createContainers(containerNames, usePlural);
     }
     return instance;
+  }
+
+  private static pluralize(word: string): string {
+    if (word.endsWith('s') || word.endsWith('sh') || word.endsWith('ch') || word.endsWith('x') || word.endsWith('z')) {
+      return word + 'es';
+    }
+    if (word.endsWith('y') && !/[aeiou]y$/.test(word)) {
+      return word.slice(0, -1) + 'ies';
+    }
+    return word + 's';
+  }
+
+  private async createContainers(containerNames: string[], usePlural?: boolean): Promise<void> {
+    const names = usePlural ? containerNames.map(name => Cosmos.pluralize(name)) : containerNames;
+    await Promise.all(names.map(name => this.database.containers.createIfNotExists({ id: name, partitionKey: { paths: ['/id'] } })));
   }
 
   private getContainer(containerName: string): Container {
@@ -48,16 +51,16 @@ export class Cosmos {
     return resource!;
   }
 
-  public async findOne(containerName: string, query: string) {
+  public async findOne<T extends ItemDefinition>(containerName: string, query: string) {
     const container = this.getContainer(containerName);
     const { resources } = await container.items.query(query).fetchAll();
-    return resources[0];
+    return resources[0] as T | undefined;
   }
 
-  public async findMany(containerName: string, query: string) {
+  public async findMany<T extends ItemDefinition>(containerName: string, query: string) {
     const container = this.getContainer(containerName);
     const { resources } = await container.items.query(query).fetchAll();
-    return resources;
+    return resources as T[];
   }
 
   public async delete(containerName: string, id: string) {

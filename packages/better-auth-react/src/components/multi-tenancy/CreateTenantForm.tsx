@@ -33,6 +33,7 @@ export function CreateTenantForm({
       setDescription('')
       onSuccess?.()
     } catch (err) {
+      console.error('Error creating tenant:', err)
       // Error is handled by the hook
     }
   }

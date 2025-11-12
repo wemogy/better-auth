@@ -1,17 +1,12 @@
 import { useState } from 'react'
-import { useAuthClient } from '../AuthProvider'
-
-interface UserProfile {
-  name?: string
-  email?: string
-  // Add other profile fields as needed
-}
+import { useAuthClient } from './useAuthClient'
+import type { AuthClient } from '../types/auth-client'
 
 export function useUserSettings() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const authClient = useAuthClient()
+  const authClient: AuthClient = useAuthClient()
 
   const changePassword = async (oldPassword: string, newPassword: string) => {
     setIsLoading(true)
@@ -26,13 +21,12 @@ export function useUserSettings() {
       const message =
         err instanceof Error ? err.message : 'Failed to change password'
       setError(message)
-      throw err
     } finally {
       setIsLoading(false)
     }
   }
 
-  const updateProfile = async (data: UserProfile) => {
+  const updateProfile = async (data: { name?: string; email?: string }) => {
     setIsLoading(true)
     setError(null)
 
@@ -42,7 +36,6 @@ export function useUserSettings() {
       const message =
         err instanceof Error ? err.message : 'Failed to update profile'
       setError(message)
-      throw err
     } finally {
       setIsLoading(false)
     }

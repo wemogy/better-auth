@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
-import { useAuthClient } from '../AuthProvider'
+import { useAuthClient } from './useAuthClient'
+import type { AuthClient } from '../types/auth-client'
 
 export function useAuth() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
 
-  const authClient = useAuthClient()
+  const authClient: AuthClient = useAuthClient()
 
   useEffect(() => {
     const checkAuth = async () => {

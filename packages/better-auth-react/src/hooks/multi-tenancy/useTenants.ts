@@ -1,12 +1,6 @@
-import { useEffect, useState } from 'react'
-import { useAuthClient } from '../../AuthProvider'
-
-interface Tenant {
-  id: string
-  name: string
-  description?: string
-  createdAt: string
-}
+import { useCallback, useEffect, useState } from 'react'
+import { useAuthClient } from '../useAuthClient'
+import type { AuthClient, Tenant } from '../../types/auth-client'
 
 interface UseTenantsReturn {
   tenants: Tenant[]
@@ -15,8 +9,8 @@ interface UseTenantsReturn {
   refetch: () => Promise<void>
 }
 
-function checkMultiTenancyPlugin(authClient: any): boolean {
-  return authClient?.$plugins?.some((p: any) => p.id === 'multi-tenancy')
+function checkMultiTenancyPlugin(authClient: AuthClient): boolean {
+  return authClient?.$plugins?.some((p) => p.id === 'multi-tenancy') ?? false
 }
 
 export function useTenants(): UseTenantsReturn {
@@ -24,9 +18,9 @@ export function useTenants(): UseTenantsReturn {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  const authClient = useAuthClient()
+  const authClient: AuthClient = useAuthClient()
 
-  const fetchTenants = async () => {
+  const fetchTenants = useCallback(async () => {
     try {
       setIsLoading(true)
       setError(null)
@@ -38,7 +32,7 @@ export function useTenants(): UseTenantsReturn {
         return
       }
 
-      const result = await authClient.multiTenancy.tenants()
+      const result = await authClient.multiTenancy!.tenants()
       setTenants(result.tenants || [])
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch tenants')
@@ -46,11 +40,11 @@ export function useTenants(): UseTenantsReturn {
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [authClient])
 
   useEffect(() => {
     fetchTenants()
-  }, [authClient])
+  }, [fetchTenants])
 
   return {
     tenants,
