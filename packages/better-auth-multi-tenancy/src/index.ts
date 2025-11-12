@@ -16,6 +16,12 @@ export interface MultiTenancyOptions {
    * @default "tenantId"
    */
   tenantField?: string;
+
+  /**
+   * Whether to expose tenant management endpoints
+   * @default false
+   */
+  exposeTenantEndpoints?: boolean;
 }
 
 /**
@@ -150,7 +156,7 @@ async function setTenantCookie(
 }
 
 export const multiTenancyPlugin = (options: MultiTenancyOptions = {}): BetterAuthPlugin => {
-  const { enforceTenantIsolation = true, tenantField = 'tenantId' } = options;
+  const { enforceTenantIsolation = true, tenantField = 'tenantId', exposeTenantEndpoints = true } = options;
 
   return {
     id: 'multi-tenancy',
@@ -186,96 +192,98 @@ export const multiTenancyPlugin = (options: MultiTenancyOptions = {}): BetterAut
         },
       },
     },
-    endpoints: {
-      createTenant: createAuthEndpoint(
-        '/multi-tenancy/create-tenant',
-        {
-          method: 'POST',
-        },
-        async ctx => {
-          const { name, description } = ctx.body as { name: string; description?: string };
+    ...(exposeTenantEndpoints && {
+      endpoints: {
+        createTenant: createAuthEndpoint(
+          '/multi-tenancy/create-tenant',
+          {
+            method: 'POST',
+          },
+          async ctx => {
+            const { name, description } = ctx.body as { name: string; description?: string };
 
-          if (!name) {
-            throw new APIError('BAD_REQUEST', { message: 'Tenant name is required' });
-          }
+            if (!name) {
+              throw new APIError('BAD_REQUEST', { message: 'Tenant name is required' });
+            }
 
-          const session = await getSessionFromCtx(ctx);
-          if (!session) {
-            throw new APIError('UNAUTHORIZED', { message: 'Authentication required' });
-          }
+            const session = await getSessionFromCtx(ctx);
+            if (!session) {
+              throw new APIError('UNAUTHORIZED', { message: 'Authentication required' });
+            }
 
-          const tenant = await ctx.context.adapter.create({
-            model: 'tenant',
-            data: {
-              name,
-              description,
-              createdAt: new Date(),
-            },
-          });
+            const tenant = await ctx.context.adapter.create({
+              model: 'tenant',
+              data: {
+                name,
+                description,
+                createdAt: new Date(),
+              },
+            });
 
-          await ctx.context.adapter.update({
-            model: 'user',
-            where: [{ field: 'id', value: session.user.id, operator: 'eq' }],
-            update: { [tenantField]: tenant.id },
-          });
+            await ctx.context.adapter.update({
+              model: 'user',
+              where: [{ field: 'id', value: session.user.id, operator: 'eq' }],
+              update: { [tenantField]: tenant.id },
+            });
 
-          return ctx.json({ tenant });
-        },
-      ),
+            return ctx.json({ tenant });
+          },
+        ),
 
-      getTenants: createAuthEndpoint(
-        '/multi-tenancy/tenants',
-        {
-          method: 'GET',
-        },
-        async ctx => {
-          const session = await getSessionFromCtx(ctx);
-          if (!session) {
-            throw new APIError('UNAUTHORIZED', { message: 'Authentication required' });
-          }
+        getTenants: createAuthEndpoint(
+          '/multi-tenancy/tenants',
+          {
+            method: 'GET',
+          },
+          async ctx => {
+            const session = await getSessionFromCtx(ctx);
+            if (!session) {
+              throw new APIError('UNAUTHORIZED', { message: 'Authentication required' });
+            }
 
-          const userTenantId = session.user[tenantField as keyof typeof session.user] as string;
-          const tenants = await ctx.context.adapter.findMany({
-            model: 'tenant',
-            where: [{ field: 'id', value: userTenantId, operator: 'eq' }],
-          });
+            const userTenantId = session.user[tenantField as keyof typeof session.user] as string;
+            const tenants = await ctx.context.adapter.findMany({
+              model: 'tenant',
+              where: [{ field: 'id', value: userTenantId, operator: 'eq' }],
+            });
 
-          return ctx.json({ tenants: tenants as readonly unknown[] });
-        },
-      ),
+            return ctx.json({ tenants: tenants as readonly unknown[] });
+          },
+        ),
 
-      switchTenant: createAuthEndpoint(
-        '/multi-tenancy/switch-tenant',
-        {
-          method: 'POST',
-        },
-        async ctx => {
-          const { tenantId } = ctx.body as { tenantId: string };
+        switchTenant: createAuthEndpoint(
+          '/multi-tenancy/switch-tenant',
+          {
+            method: 'POST',
+          },
+          async ctx => {
+            const { tenantId } = ctx.body as { tenantId: string };
 
-          const session = await getSessionFromCtx(ctx);
-          if (!session) {
-            throw new APIError('UNAUTHORIZED', { message: 'Authentication required' });
-          }
+            const session = await getSessionFromCtx(ctx);
+            if (!session) {
+              throw new APIError('UNAUTHORIZED', { message: 'Authentication required' });
+            }
 
-          const user = await ctx.context.adapter.findOne({
-            model: 'user',
-            where: [{ field: 'id', value: session.user.id, operator: 'eq' }],
-          });
+            const user = await ctx.context.adapter.findOne({
+              model: 'user',
+              where: [{ field: 'id', value: session.user.id, operator: 'eq' }],
+            });
 
-          if (!user || user[tenantField as keyof typeof user] !== tenantId) {
-            throw new APIError('FORBIDDEN', { message: 'Access to tenant denied' });
-          }
+            if (!user || user[tenantField as keyof typeof user] !== tenantId) {
+              throw new APIError('FORBIDDEN', { message: 'Access to tenant denied' });
+            }
 
-          await ctx.context.adapter.update({
-            model: 'session',
-            where: [{ field: 'id', value: session.session.id, operator: 'eq' }],
-            update: { activeTenantId: tenantId },
-          });
+            await ctx.context.adapter.update({
+              model: 'session',
+              where: [{ field: 'id', value: session.session.id, operator: 'eq' }],
+              update: { activeTenantId: tenantId },
+            });
 
-          return ctx.json({ success: true });
-        },
-      ),
-    },
+            return ctx.json({ success: true });
+          },
+        ),
+      },
+    }),
     hooks: {
       before: [
         {

@@ -1,0 +1,26 @@
+{
+  "name": "idp-backend",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "lint": "eslint src/**/*.ts",
+    "format": "prettier --write \"src/**/*.ts\"",
+    "check": "prettier --check \"src/**/*.ts\" && eslint src/**/*.ts",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@azure/cosmos": "^4.7.0",
+    "@hono/node-server": "^1.19.6",
+    "@hono/swagger-ui": "^0.5.2",
+    "dotenv": "^17.2.3",
+    "hono": "^4.10.5",
+    "zod": "^4.1.12"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.17",
+    "tsx": "^4.7.1",
+    "typescript": "^5.8.3",
+    "@wemogy/config": "^2.0.1"
+  }
+}
