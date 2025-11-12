@@ -6,3 +6,16 @@ node_modules
 .env.production.local
 .turbo
 .DS_Store
+/.idea/.gitignore
+/packages/better-auth-react/src/types/auth-client.ts
+/.idea/better-auth-cosmos.iml
+/.idea/compiler.xml
+/.idea/copilot.data.migration.agent.xml
+/.idea/copilot.data.migration.ask.xml
+/.idea/copilot.data.migration.ask2agent.xml
+/.idea/copilot.data.migration.edit.xml
+/.idea/modules.xml
+/.idea/prettier.xml
+/.idea/inspectionProfiles/Project_Default.xml
+/packages/better-auth-react/src/hooks/useAuthClient.ts
+/.idea/vcs.xml
