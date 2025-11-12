@@ -1,51 +1,43 @@
-import React, { useState } from 'react'
-import { useAuthClient } from '../hooks/useAuthClient'
-import type { AuthClient } from '../types/auth-client'
+'use client';
 
-interface LoginFormProps {
-  className?: string
-  tenantId?: string
-  onSuccess?: () => void
+import { useState } from 'react';
+import { authClient } from '@/lib/authClient';
+
+interface LoginFormClientProps {
+  className?: string;
+  tenantId?: string;
+  onSuccess?: () => void;
 }
 
-export function LoginForm({
-  className = '',
-  tenantId,
-  onSuccess,
-}: LoginFormProps) {
-  const authClient: AuthClient = useAuthClient()
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState('')
+export function LoginFormClient({ className = '', tenantId, onSuccess }: LoginFormClientProps) {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsLoading(true)
-    setError('')
+    e.preventDefault();
+    setIsLoading(true);
+    setError('');
 
     try {
       await authClient.signIn.email({
         email,
         password,
         ...(tenantId && { tenantId }),
-      })
-      // Success - you might want to redirect or update state
-      onSuccess?.()
+      });
+      onSuccess?.();
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Login failed')
+      setError(err instanceof Error ? err.message : 'Login failed');
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   return (
     <form onSubmit={handleSubmit} className={`space-y-4 ${className}`}>
       <div>
-        <label
-          htmlFor="email"
-          className="block text-sm font-medium text-gray-700"
-        >
+        <label htmlFor="email" className="block text-sm font-medium text-gray-700">
           Email
         </label>
         <input
@@ -53,15 +45,12 @@ export function LoginForm({
           type="email"
           required
           value={email}
-          onChange={(e) => setEmail(e.target.value)}
+          onChange={e => setEmail(e.target.value)}
           className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
         />
       </div>
       <div>
-        <label
-          htmlFor="password"
-          className="block text-sm font-medium text-gray-700"
-        >
+        <label htmlFor="password" className="block text-sm font-medium text-gray-700">
           Password
         </label>
         <input
@@ -69,7 +58,7 @@ export function LoginForm({
           type="password"
           required
           value={password}
-          onChange={(e) => setPassword(e.target.value)}
+          onChange={e => setPassword(e.target.value)}
           className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
         />
       </div>
@@ -82,5 +71,5 @@ export function LoginForm({
         {isLoading ? 'Logging in...' : 'Login'}
       </button>
     </form>
-  )
+  );
 }

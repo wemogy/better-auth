@@ -83,4 +83,4 @@ jobs:
           push: true
           dockerfile-path: 'apps/idp-backend'
           context-path: '.'
-          image-name: 'better-auth-cosmos/idp-backend'
+          image-name: 'auth/idp-backend'

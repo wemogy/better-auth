@@ -1,12 +1,13 @@
 'use client';
 
-import { useSignout, useUser } from '@wemogy/better-auth-react';
+import { useSignoutClient } from '@/hooks/useSignoutClient';
+import { useUserClient } from '@/hooks/useUserClient';
 import Link from 'next/link';
 import { getTenantIdFromHostname } from '@/lib/subdomain';
 
 export default function DashboardPage() {
-  const { user, isLoading } = useUser();
-  const { signOut } = useSignout();
+  const { user, isLoading } = useUserClient();
+  const { signOut } = useSignoutClient();
   const tenantId = getTenantIdFromHostname();
 
   if (isLoading) {

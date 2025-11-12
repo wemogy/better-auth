@@ -1,29 +1,25 @@
-import React, { useState } from 'react'
-import { useAuthClient } from '../hooks/useAuthClient'
-import type { AuthClient } from '../types/auth-client'
+'use client';
 
-interface RegisterFormProps {
-  className?: string
-  tenantId?: string
-  onSuccess?: () => void
+import { useState } from 'react';
+import { authClient } from '@/lib/authClient';
+
+interface RegisterFormClientProps {
+  className?: string;
+  tenantId?: string;
+  onSuccess?: () => void;
 }
 
-export function RegisterForm({
-  className = '',
-  tenantId,
-  onSuccess,
-}: RegisterFormProps) {
-  const authClient: AuthClient = useAuthClient()
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [name, setName] = useState('')
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState('')
+export function RegisterFormClient({ className = '', tenantId, onSuccess }: RegisterFormClientProps) {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [name, setName] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsLoading(true)
-    setError('')
+    e.preventDefault();
+    setIsLoading(true);
+    setError('');
 
     try {
       await authClient.signUp.email({
@@ -31,38 +27,31 @@ export function RegisterForm({
         password,
         name: name || email.split('@')[0],
         ...(tenantId && { tenantId }),
-      })
-      // Success - you might want to redirect or show success message
-      onSuccess?.()
+      });
+      onSuccess?.();
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Registration failed')
+      setError(err instanceof Error ? err.message : 'Registration failed');
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   return (
     <form onSubmit={handleSubmit} className={`space-y-4 ${className}`}>
       <div>
-        <label
-          htmlFor="name"
-          className="block text-sm font-medium text-gray-700"
-        >
+        <label htmlFor="name" className="block text-sm font-medium text-gray-700">
           Name
         </label>
         <input
           id="name"
           type="text"
           value={name}
-          onChange={(e) => setName(e.target.value)}
+          onChange={e => setName(e.target.value)}
           className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
         />
       </div>
       <div>
-        <label
-          htmlFor="email"
-          className="block text-sm font-medium text-gray-700"
-        >
+        <label htmlFor="email" className="block text-sm font-medium text-gray-700">
           Email
         </label>
         <input
@@ -70,15 +59,12 @@ export function RegisterForm({
           type="email"
           required
           value={email}
-          onChange={(e) => setEmail(e.target.value)}
+          onChange={e => setEmail(e.target.value)}
           className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
         />
       </div>
       <div>
-        <label
-          htmlFor="password"
-          className="block text-sm font-medium text-gray-700"
-        >
+        <label htmlFor="password" className="block text-sm font-medium text-gray-700">
           Password
         </label>
         <input
@@ -86,7 +72,7 @@ export function RegisterForm({
           type="password"
           required
           value={password}
-          onChange={(e) => setPassword(e.target.value)}
+          onChange={e => setPassword(e.target.value)}
           className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
         />
       </div>
@@ -99,5 +85,5 @@ export function RegisterForm({
         {isLoading ? 'Registering...' : 'Register'}
       </button>
     </form>
-  )
+  );
 }
