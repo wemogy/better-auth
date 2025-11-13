@@ -39,8 +39,10 @@ RUN npm install -g pnpm
 COPY .npmrc ./
 COPY package.json pnpm-lock.yaml ./
 
-# Install only production dependencies
+# Install only production dependencies, skipping lifecycle scripts to avoid husky prepare step
+ENV npm_config_ignore_scripts=true
 RUN pnpm install --frozen-lockfile --prod
+ENV npm_config_ignore_scripts=false
 
 # Copy the built application from the builder
 COPY --from=builder /app/dist ./dist
