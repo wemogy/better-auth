@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { TenantRepository } from '../lib/cosmos/index.ts';
+import { TenantRepository } from '../lib/cosmos/index.js';
 import { createTenantSchema, updateTenantSchema } from '../lib/schemas.js';
 
 const tenantRoutes = new Hono();
