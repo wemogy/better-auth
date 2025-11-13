@@ -3,7 +3,7 @@ import { serve } from '@hono/node-server';
 import { Hono } from 'hono';
 import logger from './lib/logger/logger.js';
 import { swaggerUI } from '@hono/swagger-ui';
-import { CosmosFactory, initializeCosmosFromEnv } from './lib/cosmos/index.ts';
+import { CosmosFactory, initializeCosmosFromEnv } from './lib/cosmos';
 import tenantRoutes from './routes/tenantRoutes.js';
 
 config();

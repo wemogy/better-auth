@@ -26,3 +26,12 @@ lerna-debug.log*
 
 # misc
 .DS_Store
+/dist/lib/cosmos/cosmosClient.js
+/dist/lib/cosmos/cosmosFactory.js
+/dist/lib/cosmos/cosmosRepository.js
+/dist/lib/cosmos/index.js
+/dist/index.js
+/dist/lib/logger/logger.js
+/dist/lib/schemas.js
+/dist/lib/cosmos/tenantRepository.js
+/dist/routes/tenantRoutes.js
