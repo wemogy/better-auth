@@ -4,8 +4,16 @@ FROM node:20-alpine AS base
 # Set working directory in the base stage
 WORKDIR /app
 
-# Copy .npmrc for GitHub Packages authentication (if present)
+# Define build argument for GitHub Packages token
+ARG WEMOGY_PACKAGES_TOKEN
+
+# Copy .npmrc for GitHub Packages authentication (if present) and configure authentication
 COPY .npmrc ./
+
+# Configure npm authentication for GitHub Packages using the token
+RUN if [ -n "$WEMOGY_PACKAGES_TOKEN" ]; then \
+        echo "//npm.pkg.github.com/:_authToken=$WEMOGY_PACKAGES_TOKEN" >> .npmrc; \
+    fi
 
 # Copy package.json and pnpm-lock.yaml (from root, since Turborepo)
 COPY package.json pnpm-lock.yaml ./
@@ -19,6 +27,10 @@ RUN pnpm install --frozen-lockfile
 
 # Builder Stage: Copy source code and build the application
 FROM dependencies AS builder
+
+# Define build argument for GitHub Packages token
+ARG WEMOGY_PACKAGES_TOKEN
+
 # Copy only the app source code (not the entire root directory)
 COPY apps/idp-backend/ ./
 # Copy required packages from the monorepo
@@ -32,11 +44,20 @@ FROM node:20-alpine AS production
 # Set working directory in the production container
 WORKDIR /app
 
+# Define build argument for GitHub Packages token
+ARG WEMOGY_PACKAGES_TOKEN
+
 # Install pnpm globally
 RUN npm install -g pnpm
 
 # Copy only package.json and pnpm-lock.yaml for production dependencies
 COPY .npmrc ./
+
+# Configure npm authentication for GitHub Packages using the token
+RUN if [ -n "$WEMOGY_PACKAGES_TOKEN" ]; then \
+        echo "//npm.pkg.github.com/:_authToken=$WEMOGY_PACKAGES_TOKEN" >> .npmrc; \
+    fi
+
 COPY package.json pnpm-lock.yaml ./
 
 # Install only production dependencies, skipping lifecycle scripts to avoid husky prepare step
