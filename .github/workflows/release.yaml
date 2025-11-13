@@ -75,9 +75,9 @@ jobs:
       - name: Build and push idp-backend to Azure Container Registry
         uses: ./.github/actions/containers
         with:
-          container-registry-server: ${{ secrets.AZURE_CONTAINER_REGISTRY_SERVER }}
-          container-registry-username: ${{ secrets.AZURE_CONTAINER_REGISTRY_USERNAME }}
-          container-registry-password: ${{ secrets.AZURE_CONTAINER_REGISTRY_PASSWORD }}
+          container-registry-server: ${{ secrets.CONTAINER_REGISTRY_LOGIN_SERVER }}
+          container-registry-username: ${{ secrets.CONTAINER_REGISTRY_USERNAME }}
+          container-registry-password: ${{ secrets.CONTAINER_REGISTRY_PASSWORD }}
           wemogy-packages-token: ${{ secrets.WEMOGY_PACKAGES_TOKEN }}
           version: ${{ needs.get-version.outputs.next-version }}
           push: true
