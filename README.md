@@ -129,5 +129,4 @@ Releases are automated through GitHub Actions:
 ## License
 
 MIT License
-
 Copyright (c) 2026 wemogy
