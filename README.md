@@ -128,4 +128,6 @@ Releases are automated through GitHub Actions:
 
 ## License
 
-UNLICENSED © wemogy
+MIT License
+
+Copyright (c) 2026 wemogy

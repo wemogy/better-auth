@@ -1,7 +1,17 @@
 {
-  "extends": "@wemogy/config/typescript/tsconfig.base.json",
   "compilerOptions": {
-    /* Library build overrides */
+    /* Base */
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "useDefineForClassFields": true,
+    "skipLibCheck": true,
+    "moduleDetection": "force",
+    /* Linting */
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedSideEffectImports": true,
+    /* Library build */
     "noEmit": false,
     "declaration": true,
     "outDir": "./dist",
@@ -10,7 +20,6 @@
     "moduleResolution": "node",
     "target": "ES2022",
     "allowImportingTsExtensions": false,
-    /* Additional strict checks */
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "strictPropertyInitialization": false

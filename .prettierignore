@@ -2,3 +2,5 @@ node_modules
 .turbo
 pnpm-lock.yaml
 .next
+**/next-env.d.ts
+dist
