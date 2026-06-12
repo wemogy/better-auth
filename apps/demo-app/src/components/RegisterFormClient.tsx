@@ -5,11 +5,10 @@ import { authClient } from '@/lib/authClient';
 
 interface RegisterFormClientProps {
   className?: string;
-  tenantId?: string;
   onSuccess?: () => void;
 }
 
-export function RegisterFormClient({ className = '', tenantId, onSuccess }: RegisterFormClientProps) {
+export function RegisterFormClient({ className = '', onSuccess }: RegisterFormClientProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
@@ -26,7 +25,6 @@ export function RegisterFormClient({ className = '', tenantId, onSuccess }: Regi
         email,
         password,
         name: name || email.split('@')[0],
-        ...(tenantId && { tenantId }),
       });
       onSuccess?.();
     } catch (err: unknown) {

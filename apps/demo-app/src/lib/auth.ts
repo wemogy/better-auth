@@ -1,6 +1,5 @@
 import { betterAuth } from 'better-auth';
 import { buildCosmosAdapter } from '@wemogy/better-auth-cosmos';
-import { multiTenancyPlugin } from '@wemogy/better-auth-multi-tenancy';
 
 let authInstance: ReturnType<typeof betterAuth> | null = null;
 
@@ -26,15 +25,7 @@ export async function getAuth() {
     emailAndPassword: {
       enabled: true,
     },
-    plugins: [multiTenancyPlugin()],
-    trustedOrigins: [
-      'http://localhost:3000',
-      'http://localhost:5173',
-      // Add subdomain patterns for localhost
-      'http://*.localhost:3000',
-      'http://*.127.0.0.1.nip.io',
-      '*',
-    ],
+    trustedOrigins: ['http://localhost:3000', 'http://localhost:5173'],
     baseURL: process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_AUTH_URL || 'http://localhost:3000',
     basePath: '/api/auth',
   });

@@ -29,10 +29,6 @@ interface CosmosAdapterConfig {
    * Database name
    */
   dbName: string;
-  /**
-   * Tenant ID for multi-tenancy
-   */
-  tenantId?: string;
 }
 
 export const cosmosEnvironment: {
@@ -46,7 +42,7 @@ export const cosmosEnvironment: {
 };
 
 export const buildCosmosAdapter = async (config: CosmosAdapterConfig) => {
-  const { adapterId, adapterName, dbCredentials, dbName, debugLogs = false, usePlural = false, tenantId } = config;
+  const { adapterId, adapterName, dbCredentials, dbName, debugLogs = false, usePlural = false } = config;
 
   // Create Cosmos instance with known tables including plugin tables
   const baseContainerNames = [
@@ -60,7 +56,6 @@ export const buildCosmosAdapter = async (config: CosmosAdapterConfig) => {
     'invitation',
     'teamMember',
     'twoFactor',
-    'tenant', // Multi-Tenancy plugin
   ];
   const cosmos = await Cosmos.create(dbCredentials, dbName, baseContainerNames, usePlural);
 
@@ -87,7 +82,7 @@ export const buildCosmosAdapter = async (config: CosmosAdapterConfig) => {
       cosmosEnvironment.getModelName = getModelName;
       cosmosEnvironment.cosmos = cosmos;
 
-      return new CosmosAdapter(cosmos, getModelName, tenantId) as CustomAdapter;
+      return new CosmosAdapter(cosmos, getModelName) as CustomAdapter;
     },
   });
 };
