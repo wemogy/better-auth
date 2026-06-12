@@ -3,29 +3,31 @@ import type { CleanedWhere, Where } from 'better-auth/adapters';
 import { Cosmos } from './cosmos';
 import { queryBuilder } from './util/queryBuilder';
 
-export class CosmosAdapter {
-  private cosmos: Cosmos;
-  private readonly getModelName: (model: string) => string;
-  private readonly getFieldName: (args: { model: string; field: string }) => string;
+interface CosmosAdapterDeps {
+  cosmos: Cosmos;
+  getModelName: (model: string) => string;
+  getFieldName: (args: { model: string; field: string }) => string;
   /**
    * Allowed document field names per model, derived from the better-auth schema.
-   * Used to whitelist identifiers (where/sortBy/select) before they are
-   * interpolated into Cosmos SQL — Cosmos cannot parameterize identifiers, so
-   * unvalidated field names would be a SQL injection vector.
+   * Whitelists identifiers (where/sortBy/select) before they are interpolated
+   * into Cosmos SQL — Cosmos cannot parameterize identifiers, so an unvalidated
+   * field name would be a SQL injection vector.
    */
-  private readonly validFields: Record<string, ReadonlySet<string>>;
+  validFields: Record<string, ReadonlySet<string>>;
   /**
    * Resolves once all containers required by the active better-auth schema exist.
    */
+  ready: Promise<void>;
+}
+
+export class CosmosAdapter {
+  private readonly cosmos: Cosmos;
+  private readonly getModelName: (model: string) => string;
+  private readonly getFieldName: (args: { model: string; field: string }) => string;
+  private readonly validFields: Record<string, ReadonlySet<string>>;
   private readonly ready: Promise<void>;
 
-  constructor(
-    cosmos: Cosmos,
-    getModelName: (model: string) => string,
-    getFieldName: (args: { model: string; field: string }) => string,
-    validFields: Record<string, ReadonlySet<string>> = {},
-    ready: Promise<void> = Promise.resolve(),
-  ) {
+  constructor({ cosmos, getModelName, getFieldName, validFields, ready }: CosmosAdapterDeps) {
     this.cosmos = cosmos;
     this.getModelName = getModelName;
     this.getFieldName = getFieldName;
@@ -34,9 +36,11 @@ export class CosmosAdapter {
   }
 
   /**
-   * Reject any identifier that is not a known field of the model. Cosmos SQL
-   * has no parameter binding for identifiers, so this whitelist is the only
-   * thing standing between a caller-supplied field name and the query text.
+   * Reject any identifier that is not a known field of the model. better-auth's
+   * adapter factory already maps and validates `where` field names (and throws
+   * on unknown ones), so for `where` this is a second line of defense; for
+   * `sortBy` and `select` — which the factory does not validate — it is the
+   * primary guard against an unvalidated identifier reaching the query text.
    */
   private assertField(model: string, field: string): void {
     const allowed = this.validFields[model];
@@ -45,25 +49,32 @@ export class CosmosAdapter {
     }
   }
 
-  // `select` arrives with logical field names and has to be mapped to the
-  // actual document property names (devs can rename fields via better-auth options).
-  private mapSelect(model: string, select?: string[]): string[] | undefined {
-    return select?.map(field => {
-      const mapped = this.getFieldName({ model, field });
-      this.assertField(model, mapped);
-      return mapped;
-    });
+  // `select` and `sortBy` arrive with logical field names (the factory does not
+  // transform them), so map them to the physical document property names and
+  // validate the result before it reaches the query.
+  private mapField(model: string, field: string): string {
+    const mapped = this.getFieldName({ model, field });
+    this.assertField(model, mapped);
+    return mapped;
   }
 
-  // where/sortBy field names already arrive as physical column names from
-  // better-auth's adapter factory; validate them before they reach the query.
-  private assertWhere(model: string, where?: { field: string }[], sortBy?: { field: string }): void {
+  private mapSelect(model: string, select?: string[]): string[] | undefined {
+    return select?.map(field => this.mapField(model, field));
+  }
+
+  private mapSortBy(model: string, sortBy?: { field: string; direction: 'asc' | 'desc' }) {
+    if (!sortBy) {
+      return undefined;
+    }
+    return { ...sortBy, field: this.mapField(model, sortBy.field) };
+  }
+
+  // `where` field names arrive already mapped to physical column names by the
+  // factory; validate them as defense in depth before they reach the query.
+  private assertWhere(model: string, where?: { field: string }[]): void {
     where?.forEach(({ field }) => {
       this.assertField(model, field);
     });
-    if (sortBy) {
-      this.assertField(model, sortBy.field);
-    }
   }
 
   async create<T extends ItemDefinition>({ model, data, select: _select }: { model: string; data: T; select?: string[] }) {
@@ -142,10 +153,14 @@ export class CosmosAdapter {
     offset?: number;
     limit?: number;
   }) {
-    this.assertWhere(model, where, sortBy);
+    this.assertWhere(model, where);
     const mappedSelect = this.mapSelect(model, select);
+    const mappedSortBy = this.mapSortBy(model, sortBy);
     await this.ready;
-    return await this.cosmos.findMany<T>(this.getModelName(model), queryBuilder({ select: mappedSelect, where, sortBy, offset, limit }));
+    return await this.cosmos.findMany<T>(
+      this.getModelName(model),
+      queryBuilder({ select: mappedSelect, where, sortBy: mappedSortBy, offset, limit }),
+    );
   }
 
   async count({ model, where }: { model: string; where?: CleanedWhere[] }) {

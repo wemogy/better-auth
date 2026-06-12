@@ -14,7 +14,6 @@ interface QueryBuilderOptions {
 }
 
 export const queryBuilder = ({ select = ['*'], where, sortBy, offset, limit, countOnly }: QueryBuilderOptions): SqlQuerySpec => {
-  const conditions: string[] = [];
   const parameters: SqlParameter[] = [];
 
   const addParameter = (value: unknown): string => {
@@ -23,13 +22,29 @@ export const queryBuilder = ({ select = ['*'], where, sortBy, offset, limit, cou
     return name;
   };
 
+  // Group conditions by connector the same way better-auth's reference adapters
+  // do: AND-connector conditions form one group, OR-connector conditions another,
+  // and the two groups are AND-ed together — i.e. `(a AND b) AND (c OR d)`.
+  // Parentheses are only emitted when both groups are present, so the SQL is
+  // unambiguous for mixed connectors without changing the all-AND / all-OR shape.
+  const andConditions: string[] = [];
+  const orConditions: string[] = [];
   for (const w of where ?? []) {
-    conditions.push(`${conditions.length ? ` ${w.connector} ` : ''}${mapCondition(w, addParameter)}`);
+    (w.connector === 'OR' ? orConditions : andConditions).push(mapCondition(w, addParameter));
+  }
+
+  const andClause = andConditions.join(' AND ');
+  const orClause = orConditions.join(' OR ');
+  let whereClause = '';
+  if (andConditions.length && orConditions.length) {
+    whereClause = `(${andClause}) AND (${orClause})`;
+  } else {
+    whereClause = andClause || orClause;
   }
 
   const columns = select.length === 1 && select.at(0) === '*' ? '*' : select.map(column => `c.${column}`).join(', ');
 
-  let query = `SELECT ${countOnly ? 'VALUE COUNT(1)' : columns} FROM c${conditions.length ? ` WHERE ${conditions.join(' ')}` : ''}${sortBy ? ` ORDER BY c.${sortBy.field} ${sortBy.direction}` : ''}`;
+  let query = `SELECT ${countOnly ? 'VALUE COUNT(1)' : columns} FROM c${whereClause ? ` WHERE ${whereClause}` : ''}${sortBy ? ` ORDER BY c.${sortBy.field} ${sortBy.direction}` : ''}`;
 
   // Handle pagination
   // offset/limit are interpolated into the query text (Cosmos has no parameter

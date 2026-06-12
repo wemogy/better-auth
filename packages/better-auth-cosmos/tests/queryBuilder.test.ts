@@ -29,11 +29,43 @@ describe('QueryBuilder', () => {
         { field: 'name', value: 'John', operator: 'eq', connector: 'AND' },
       ];
       const { query, parameters } = queryBuilder({ where });
-      expect(query).toBe('SELECT * FROM c WHERE c.id = @p0  AND c.name = @p1');
+      expect(query).toBe('SELECT * FROM c WHERE c.id = @p0 AND c.name = @p1');
       expect(parameters).toEqual([
         { name: '@p0', value: '123' },
         { name: '@p1', value: 'John' },
       ]);
+    });
+  });
+
+  describe('connector grouping', () => {
+    it('joins all-AND conditions without parentheses', () => {
+      const where: CleanedWhere[] = [
+        { field: 'a', value: '1', operator: 'eq', connector: 'AND' },
+        { field: 'b', value: '2', operator: 'eq', connector: 'AND' },
+        { field: 'c', value: '3', operator: 'eq', connector: 'AND' },
+      ];
+      const { query } = queryBuilder({ where });
+      expect(query).toBe('SELECT * FROM c WHERE c.a = @p0 AND c.b = @p1 AND c.c = @p2');
+    });
+
+    it('joins all-OR conditions without parentheses', () => {
+      const where: CleanedWhere[] = [
+        { field: 'a', value: '1', operator: 'eq', connector: 'OR' },
+        { field: 'b', value: '2', operator: 'eq', connector: 'OR' },
+      ];
+      const { query } = queryBuilder({ where });
+      expect(query).toBe('SELECT * FROM c WHERE c.a = @p0 OR c.b = @p1');
+    });
+
+    it('parenthesizes mixed AND/OR so the OR group binds correctly', () => {
+      // Matches better-auth's reference adapters: (AND group) AND (OR group).
+      const where: CleanedWhere[] = [
+        { field: 'a', value: '1', operator: 'eq', connector: 'AND' },
+        { field: 'b', value: '2', operator: 'eq', connector: 'OR' },
+        { field: 'c', value: '3', operator: 'eq', connector: 'OR' },
+      ];
+      const { query } = queryBuilder({ where });
+      expect(query).toBe('SELECT * FROM c WHERE (c.a = @p0) AND (c.b = @p1 OR c.c = @p2)');
     });
   });
 
@@ -248,7 +280,7 @@ describe('QueryBuilder', () => {
       const { query, parameters } = queryBuilder({ select, where, sortBy, offset, limit });
 
       expect(query).toBe(
-        'SELECT c.id, c.name, c.email, c.status FROM c WHERE c.status = @p0  AND c.age >= @p1  OR ARRAY_CONTAINS(@p2, c.category) ORDER BY c.name asc OFFSET 0 LIMIT 25',
+        'SELECT c.id, c.name, c.email, c.status FROM c WHERE (c.status = @p0 AND c.age >= @p1) AND (ARRAY_CONTAINS(@p2, c.category)) ORDER BY c.name asc OFFSET 0 LIMIT 25',
       );
       expect(parameters).toEqual([
         { name: '@p0', value: 'active' },

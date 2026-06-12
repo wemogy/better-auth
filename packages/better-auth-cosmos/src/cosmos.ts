@@ -4,9 +4,25 @@ export interface ContainerSpec {
   name: string;
   /**
    * Partition key path, e.g. '/id' or '/userId'. Defaults to '/id'.
+   * Must be a single leading-slash segment.
    */
   partitionKey?: string;
 }
+
+/**
+ * Derive the document field name from a partition key path, rejecting anything
+ * that is not a single leading-slash segment (e.g. `userId`, `/a/b`). Cosmos
+ * requires partition key paths to start with `/`, and the delete path needs a
+ * top-level field name — validating here turns those mistakes into an early,
+ * explicit error instead of a deferred container-creation failure or a silently
+ * mis-addressed delete.
+ */
+const partitionKeyFieldFromPath = (partitionKey: string): string => {
+  if (!/^\/[^/]+$/.test(partitionKey)) {
+    throw new Error(`Invalid partition key path "${partitionKey}": expected a single leading-slash segment such as "/id" or "/userId".`);
+  }
+  return partitionKey.slice(1);
+};
 
 export class Cosmos {
   private client: CosmosClient;
@@ -65,8 +81,18 @@ export class Cosmos {
   private ensureContainer({ name, partitionKey = '/id' }: ContainerSpec): Promise<unknown> {
     let pending = this.ensuredContainers.get(name);
     if (!pending) {
-      this.partitionKeyFields[name] = partitionKey.replace(/^\//, '');
-      pending = this.database.containers.createIfNotExists({ id: name, partitionKey: { paths: [partitionKey] } });
+      // Validate the path up front so a bad config fails loudly here rather than
+      // as a deferred container-creation rejection.
+      this.partitionKeyFields[name] = partitionKeyFieldFromPath(partitionKey);
+      pending = this.database.containers.createIfNotExists({ id: name, partitionKey: { paths: [partitionKey] } }).catch(error => {
+        // Don't cache a failed creation: a transient error (throttling, network)
+        // would otherwise poison this container for the whole process lifetime.
+        // Drop the entry so a later operation can retry.
+        this.ensuredContainers.delete(name);
+        // eslint-disable-next-line no-console
+        console.error(`[better-auth-cosmos] Failed to create container "${name}":`, error);
+        throw error;
+      });
       this.ensuredContainers.set(name, pending);
     }
     return pending;
@@ -77,15 +103,19 @@ export class Cosmos {
   }
 
   public async create<T extends ItemDefinition>(containerName: string, item: T) {
-    const container = this.getContainer(containerName);
-    const created = await container.items.create(item);
-    return created.resource!;
+    const { resource } = await this.getContainer(containerName).items.create(item);
+    if (!resource) {
+      throw new Error(`Cosmos create returned no resource for container "${containerName}"`);
+    }
+    return resource;
   }
 
   public async update<T extends ItemDefinition>(containerName: string, item: T) {
-    const container = this.getContainer(containerName);
-    const { resource } = await container.items.upsert(item);
-    return resource!;
+    const { resource } = await this.getContainer(containerName).items.upsert(item);
+    if (!resource) {
+      throw new Error(`Cosmos upsert returned no resource for container "${containerName}"`);
+    }
+    return resource;
   }
 
   public async findOne<T extends ItemDefinition>(containerName: string, query: string | SqlQuerySpec) {
@@ -101,15 +131,27 @@ export class Cosmos {
   }
 
   public async count(containerName: string, query: string | SqlQuerySpec): Promise<number> {
-    const container = this.getContainer(containerName);
-    const { resources } = await container.items.query<number>(query).fetchAll();
-    return resources[0] ?? 0;
+    const { resources } = await this.getContainer(containerName).items.query<number>(query).fetchAll();
+    // `SELECT VALUE COUNT(1)` always yields exactly one row; an empty result
+    // means the query shape is wrong, which must not be reported as "0 matches".
+    if (resources.length === 0) {
+      throw new Error(`Count query returned no rows for container "${containerName}"`);
+    }
+    return resources[0];
   }
 
   public async delete(containerName: string, item: ItemDefinition & { id: string }) {
-    const container = this.getContainer(containerName);
     const partitionKeyField = this.partitionKeyFields[containerName] ?? 'id';
-    const partitionKeyValue = (item[partitionKeyField] as string | undefined) ?? item.id;
-    await container.item(item.id, partitionKeyValue).delete();
+    const partitionKeyValue = item[partitionKeyField];
+    // Refuse to guess the partition value: substituting item.id when the real
+    // partition key field is absent would address the wrong logical partition.
+    if (partitionKeyValue === undefined || partitionKeyValue === null) {
+      throw new Error(
+        `Document "${item.id}" in container "${containerName}" is missing partition key field "${partitionKeyField}"; refusing to delete to avoid targeting the wrong partition.`,
+      );
+    }
+    await this.getContainer(containerName)
+      .item(item.id, partitionKeyValue as string)
+      .delete();
   }
 }

@@ -119,8 +119,11 @@ vi.mock('@azure/cosmos', () => {
                         }
                       }
 
-                      // Unknown fragment: treat as non-matching to surface parsing gaps in tests
-                      return false;
+                      // Unknown fragment: throw rather than silently dropping the row.
+                      // If the queryBuilder output format drifts (new operator,
+                      // changed shape), this surfaces loudly instead of letting
+                      // affected rows vanish and a test pass for the wrong reason.
+                      throw new Error(`Mock query engine could not parse WHERE fragment: ${JSON.stringify(fragment)}`);
                     };
 
                     if (sql) {

@@ -27,7 +27,13 @@ describe('CosmosAdapter field whitelist', () => {
     const getFieldName = ({ field }: { model: string; field: string }) => field;
     const validFields = { user: new Set(['id', 'email', 'name', 'role']) };
 
-    adapter = new CosmosAdapter(cosmos as unknown as Cosmos, getModelName, getFieldName, validFields);
+    adapter = new CosmosAdapter({
+      cosmos: cosmos as unknown as Cosmos,
+      getModelName,
+      getFieldName,
+      validFields,
+      ready: Promise.resolve(),
+    });
   });
 
   it('rejects an unknown where field', async () => {
@@ -71,5 +77,26 @@ describe('CosmosAdapter field whitelist', () => {
     // whitelist never blocks legitimate-but-unmapped usage.
     await adapter.count({ model: 'unregistered', where: [{ field: 'anything', value: 'x', operator: 'eq', connector: 'AND' }] });
     expect(cosmos.count).toHaveBeenCalledOnce();
+  });
+
+  it('maps a renamed sortBy field to its physical name before querying', async () => {
+    // getFieldName renames logical `displayName` -> physical `name`; the
+    // whitelist holds physical names, so the mapped sort must pass and the
+    // query must receive the physical field, not the logical one.
+    const getFieldName = ({ field }: { model: string; field: string }) => (field === 'displayName' ? 'name' : field);
+    const renamingAdapter = new CosmosAdapter({
+      cosmos: cosmos as unknown as Cosmos,
+      getModelName: (model: string) => model,
+      getFieldName,
+      validFields: { user: new Set(['id', 'email', 'name', 'role']) },
+      ready: Promise.resolve(),
+    });
+
+    await renamingAdapter.findMany({ model: 'user', sortBy: { field: 'displayName', direction: 'asc' } });
+
+    expect(cosmos.findMany).toHaveBeenCalledOnce();
+    const querySpec = cosmos.findMany.mock.calls[0][1];
+    expect(querySpec.query).toContain('ORDER BY c.name asc');
+    expect(querySpec.query).not.toContain('displayName');
   });
 });

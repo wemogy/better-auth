@@ -357,5 +357,74 @@ describe('Cosmos Class', () => {
 
       await expect(cosmos.delete(containerName, item)).rejects.toThrow('Delete failed');
     });
+
+    it('should refuse to delete when the document is missing its partition key field', async () => {
+      const cosmosWithPk = await Cosmos.create({}, 'test-db', [{ name: 'sessions', partitionKey: '/token' }]);
+      // Document has no `token` field — deleting by id would target the wrong partition.
+      const item = { id: '123' };
+
+      const mockItem = { delete: vi.fn().mockResolvedValue({}) };
+      mockContainer.item.mockReturnValue(mockItem);
+
+      await expect(cosmosWithPk.delete('sessions', item)).rejects.toThrow(/missing partition key field "token"/);
+      expect(mockItem.delete).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('count operation', () => {
+    let cosmos: Cosmos;
+
+    beforeEach(async () => {
+      mockCosmosClient.databases.createIfNotExists.mockResolvedValue({ database: mockDatabase });
+      mockDatabase.containers.createIfNotExists.mockResolvedValue({});
+      cosmos = await Cosmos.create({}, 'test-db');
+    });
+
+    it('should return the count value from a COUNT query', async () => {
+      mockItems.query.mockReturnValue({ fetchAll: vi.fn().mockResolvedValue({ resources: [42] }) });
+
+      const result = await cosmos.count('users', 'SELECT VALUE COUNT(1) FROM c');
+
+      expect(result).toBe(42);
+    });
+
+    it('should throw when the COUNT query returns no rows', async () => {
+      // A SELECT VALUE COUNT(1) always yields one row; an empty result must not
+      // be silently reported as a count of 0.
+      mockItems.query.mockReturnValue({ fetchAll: vi.fn().mockResolvedValue({ resources: [] }) });
+
+      await expect(cosmos.count('users', 'SELECT VALUE COUNT(1) FROM c')).rejects.toThrow(/returned no rows/);
+    });
+  });
+
+  describe('ensureContainers', () => {
+    let cosmos: Cosmos;
+
+    beforeEach(async () => {
+      mockCosmosClient.databases.createIfNotExists.mockResolvedValue({ database: mockDatabase });
+      mockDatabase.containers.createIfNotExists.mockResolvedValue({});
+      cosmos = await Cosmos.create({}, 'test-db');
+      mockDatabase.containers.createIfNotExists.mockClear();
+    });
+
+    it('creates each container only once across repeated calls', async () => {
+      await cosmos.ensureContainers([{ name: 'users' }, { name: 'sessions', partitionKey: '/token' }]);
+      await cosmos.ensureContainers([{ name: 'users' }, { name: 'sessions', partitionKey: '/token' }]);
+
+      expect(mockDatabase.containers.createIfNotExists).toHaveBeenCalledTimes(2);
+    });
+
+    it('rejects an invalid partition key path', async () => {
+      await expect(cosmos.ensureContainers([{ name: 'users', partitionKey: 'id' }])).rejects.toThrow(/Invalid partition key path/);
+    });
+
+    it('retries creation after a transient failure instead of caching the rejection', async () => {
+      mockDatabase.containers.createIfNotExists.mockRejectedValueOnce(new Error('throttled')).mockResolvedValueOnce({});
+
+      await expect(cosmos.ensureContainers([{ name: 'users' }])).rejects.toThrow('throttled');
+      // Second call must re-attempt creation rather than replay the cached rejection.
+      await expect(cosmos.ensureContainers([{ name: 'users' }])).resolves.toBeUndefined();
+      expect(mockDatabase.containers.createIfNotExists).toHaveBeenCalledTimes(2);
+    });
   });
 });

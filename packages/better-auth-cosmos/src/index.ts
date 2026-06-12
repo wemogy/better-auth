@@ -87,9 +87,14 @@ export const buildCosmosAdapter = async (config: CosmosAdapterConfig): Promise<A
         partitionKey: partitionKeys?.[model] ?? defaultPartitionKeys[model] ?? '/id',
       }));
       const ready = cosmos.ensureContainers(containers);
-      // Container creation failures surface on the first adapter operation;
-      // this guard only prevents an unhandled rejection before that point.
-      ready.catch(() => undefined);
+      // The same `ready` promise is awaited in every adapter operation, so a
+      // container-creation failure resurfaces there. This handler runs on a
+      // detached chain purely to (a) avoid an unhandled-rejection warning and
+      // (b) log the failure so it is visible even if no operation runs yet.
+      ready.catch(error => {
+        // eslint-disable-next-line no-console
+        console.error('[better-auth-cosmos] Cosmos container provisioning failed:', error);
+      });
 
       // Whitelist of physical field names per model, used to reject unknown
       // identifiers before they are interpolated into Cosmos SQL.
@@ -102,7 +107,7 @@ export const buildCosmosAdapter = async (config: CosmosAdapterConfig): Promise<A
         validFields[model] = fields;
       }
 
-      return new CosmosAdapter(cosmos, getModelName, getFieldName, validFields, ready) as CustomAdapter;
+      return new CosmosAdapter({ cosmos, getModelName, getFieldName, validFields, ready }) as CustomAdapter;
     },
   });
 };
