@@ -171,6 +171,21 @@ describe('QueryBuilder', () => {
     });
   });
 
+  describe('count queries', () => {
+    it('should build SELECT VALUE COUNT(1) query', () => {
+      const { query, parameters } = queryBuilder({ countOnly: true });
+      expect(query).toBe('SELECT VALUE COUNT(1) FROM c');
+      expect(parameters).toEqual([]);
+    });
+
+    it('should build count query with WHERE condition', () => {
+      const where: CleanedWhere[] = [{ field: 'status', value: 'active', operator: 'eq', connector: 'AND' }];
+      const { query, parameters } = queryBuilder({ where, countOnly: true });
+      expect(query).toBe('SELECT VALUE COUNT(1) FROM c WHERE c.status = @p0');
+      expect(parameters).toEqual([{ name: '@p0', value: 'active' }]);
+    });
+  });
+
   describe('sorting', () => {
     it('should add ORDER BY with ASC direction', () => {
       const sortBy = { field: 'createdAt', direction: 'asc' as const };

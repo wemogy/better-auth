@@ -177,6 +177,15 @@ vi.mock('@azure/cosmos', () => {
                         filtered = filtered.slice(0, limit);
                       }
 
+                      // Handle SELECT VALUE COUNT(1) queries
+                      if (/SELECT\s+VALUE\s+COUNT\(1\)\s+FROM/i.test(sql)) {
+                        return {
+                          fetchAll: vi.fn().mockResolvedValue({
+                            resources: [filtered.length],
+                          }),
+                        };
+                      }
+
                       // Apply SELECT field filtering
                       if (selectFields && selectFields.length > 0) {
                         filtered = filtered.map((item: unknown) => {
@@ -199,11 +208,11 @@ vi.mock('@azure/cosmos', () => {
                     };
                   }),
                 },
-                item: vi.fn().mockImplementation((id: string, partitionKey?: string) => {
+                item: vi.fn().mockImplementation((id: string, _partitionKey?: string) => {
+                  void _partitionKey;
                   return {
                     delete: vi.fn().mockImplementation(async () => {
-                      const searchId = partitionKey || id;
-                      const index = mockDataStore[containerName].findIndex((i: unknown) => (i as Record<string, unknown>).id === searchId);
+                      const index = mockDataStore[containerName].findIndex((i: unknown) => (i as Record<string, unknown>).id === id);
                       if (index >= 0) {
                         mockDataStore[containerName].splice(index, 1);
                       }

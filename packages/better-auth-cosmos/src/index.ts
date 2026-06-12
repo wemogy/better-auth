@@ -1,4 +1,5 @@
 import { CosmosClientOptions } from '@azure/cosmos';
+import type { BetterAuthOptions } from 'better-auth';
 import { createAdapterFactory, type AdapterFactory, type DBAdapterDebugLogOption, type CustomAdapter } from 'better-auth/adapters';
 import { Cosmos } from './cosmos';
 import { CosmosAdapter } from './cosmosAdapter';
@@ -29,20 +30,35 @@ interface CosmosAdapterConfig {
    * Database name
    */
   dbName: string;
+  /**
+   * Partition key path per model (e.g. `{ session: '/userId' }`).
+   * Overrides the built-in defaults, which are chosen to match
+   * Better Auth's hottest lookup per container.
+   */
+  partitionKeys?: Record<string, string>;
 }
 
-export const cosmosEnvironment: {
-  getModelName: (model: string) => string;
-  cosmos: Cosmos;
-} = {
-  getModelName: () => {
-    throw new Error('getModelName function not initialized');
-  },
-  cosmos: null as unknown as Cosmos,
+/**
+ * Default partition key per container, aligned with the most frequent
+ * Better Auth query against it (session by token on every request,
+ * verification by identifier, account/twoFactor by userId, org-scoped
+ * models by organizationId, ...). Falls back to '/id'.
+ */
+const defaultPartitionKeys: Record<string, string> = {
+  user: '/id',
+  session: '/token',
+  verification: '/identifier',
+  account: '/userId',
+  organization: '/id',
+  member: '/organizationId',
+  team: '/organizationId',
+  invitation: '/organizationId',
+  teamMember: '/teamId',
+  twoFactor: '/userId',
 };
 
-export const buildCosmosAdapter = async (config: CosmosAdapterConfig): Promise<AdapterFactory> => {
-  const { adapterId, adapterName, dbCredentials, dbName, debugLogs = false, usePlural = false } = config;
+export const buildCosmosAdapter = async (config: CosmosAdapterConfig): Promise<AdapterFactory<BetterAuthOptions>> => {
+  const { adapterId, adapterName, dbCredentials, dbName, debugLogs = false, usePlural = false, partitionKeys } = config;
 
   // Create Cosmos instance with known tables including plugin tables
   const baseContainerNames = [
@@ -57,7 +73,11 @@ export const buildCosmosAdapter = async (config: CosmosAdapterConfig): Promise<A
     'teamMember',
     'twoFactor',
   ];
-  const cosmos = await Cosmos.create(dbCredentials, dbName, baseContainerNames, usePlural);
+  const containers = baseContainerNames.map(name => ({
+    name,
+    partitionKey: partitionKeys?.[name] ?? defaultPartitionKeys[name] ?? '/id',
+  }));
+  const cosmos = await Cosmos.create(dbCredentials, dbName, containers, usePlural);
 
   return createAdapterFactory({
     config: {
@@ -77,9 +97,6 @@ export const buildCosmosAdapter = async (config: CosmosAdapterConfig): Promise<A
       void schema;
       void debugLog;
       void getFieldAttributes;
-
-      cosmosEnvironment.getModelName = getModelName;
-      cosmosEnvironment.cosmos = cosmos;
 
       return new CosmosAdapter(cosmos, getModelName, getFieldName) as CustomAdapter;
     },

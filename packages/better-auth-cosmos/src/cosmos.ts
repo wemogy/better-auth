@@ -1,21 +1,34 @@
 import { Container, CosmosClient, CosmosClientOptions, Database, ItemDefinition, SqlQuerySpec } from '@azure/cosmos';
 
+export interface ContainerSpec {
+  name: string;
+  /**
+   * Partition key path, e.g. '/id' or '/userId'. Defaults to '/id'.
+   */
+  partitionKey?: string;
+}
+
 export class Cosmos {
   private client: CosmosClient;
   private database: Database;
+  /**
+   * Partition key field per (final, possibly pluralized) container name.
+   * Needed for deletes, where the partition key value must be supplied explicitly.
+   */
+  private partitionKeyFields: Record<string, string> = {};
 
   private constructor(credentials: CosmosClientOptions) {
     this.client = new CosmosClient(credentials);
   }
 
-  public static async create(credentials: CosmosClientOptions, dbName?: string, containerNames?: string[], usePlural?: boolean) {
+  public static async create(credentials: CosmosClientOptions, dbName?: string, containers?: ContainerSpec[], usePlural?: boolean) {
     const instance = new Cosmos(credentials);
     if (dbName) {
       const { database } = await instance.client.databases.createIfNotExists({ id: dbName });
       instance.database = database;
     }
-    if (instance.database && containerNames) {
-      await instance.createContainers(containerNames, usePlural);
+    if (instance.database && containers) {
+      await instance.createContainers(containers, usePlural);
     }
     return instance;
   }
@@ -30,9 +43,14 @@ export class Cosmos {
     return word + 's';
   }
 
-  private async createContainers(containerNames: string[], usePlural?: boolean): Promise<void> {
-    const names = usePlural ? containerNames.map(name => Cosmos.pluralize(name)) : containerNames;
-    await Promise.all(names.map(name => this.database.containers.createIfNotExists({ id: name, partitionKey: { paths: ['/id'] } })));
+  private async createContainers(containers: ContainerSpec[], usePlural?: boolean): Promise<void> {
+    await Promise.all(
+      containers.map(({ name, partitionKey = '/id' }) => {
+        const finalName = usePlural ? Cosmos.pluralize(name) : name;
+        this.partitionKeyFields[finalName] = partitionKey.replace(/^\//, '');
+        return this.database.containers.createIfNotExists({ id: finalName, partitionKey: { paths: [partitionKey] } });
+      }),
+    );
   }
 
   private getContainer(containerName: string): Container {
@@ -63,8 +81,16 @@ export class Cosmos {
     return resources as T[];
   }
 
-  public async delete(containerName: string, id: string) {
+  public async count(containerName: string, query: string | SqlQuerySpec): Promise<number> {
     const container = this.getContainer(containerName);
-    await container.item(id, id).delete();
+    const { resources } = await container.items.query<number>(query).fetchAll();
+    return resources[0] ?? 0;
+  }
+
+  public async delete(containerName: string, item: ItemDefinition & { id: string }) {
+    const container = this.getContainer(containerName);
+    const partitionKeyField = this.partitionKeyFields[containerName] ?? 'id';
+    const partitionKeyValue = (item[partitionKeyField] as string | undefined) ?? item.id;
+    await container.item(item.id, partitionKeyValue).delete();
   }
 }

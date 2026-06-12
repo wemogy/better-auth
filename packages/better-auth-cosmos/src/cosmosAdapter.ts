@@ -53,14 +53,16 @@ export class CosmosAdapter {
   async delete<T extends ItemDefinition>({ model, where }: { model: string; where?: CleanedWhere[] }) {
     const existingItem = await this.cosmos.findOne<T>(this.getModelName(model), queryBuilder({ where }));
     if (existingItem?.id) {
-      await this.cosmos.delete(this.getModelName(model), existingItem.id);
+      await this.cosmos.delete(this.getModelName(model), existingItem as T & { id: string });
     }
   }
 
   async deleteMany<T extends ItemDefinition>({ model, where }: { model: string; where?: CleanedWhere[] }) {
     const existingItems = await this.cosmos.findMany<T>(this.getModelName(model), queryBuilder({ where }));
-    const updated = await Promise.all(existingItems.map(item => item.id && this.cosmos.delete(this.getModelName(model), item.id)));
-    return updated.length;
+    const deleted = await Promise.all(
+      existingItems.filter(item => item.id).map(item => this.cosmos.delete(this.getModelName(model), item as T & { id: string })),
+    );
+    return deleted.length;
   }
 
   async findOne<T extends ItemDefinition>({ model, select, where }: { model: string; select?: string[]; where: CleanedWhere[] }) {
@@ -89,7 +91,6 @@ export class CosmosAdapter {
   }
 
   async count({ model, where }: { model: string; where?: CleanedWhere[] }) {
-    const existingItems = await this.cosmos.findMany(this.getModelName(model), queryBuilder({ where }));
-    return existingItems.length;
+    return await this.cosmos.count(this.getModelName(model), queryBuilder({ where, countOnly: true }));
   }
 }

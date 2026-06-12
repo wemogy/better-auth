@@ -7,9 +7,13 @@ interface QueryBuilderOptions {
   sortBy?: { field: string; direction: 'asc' | 'desc' };
   offset?: number;
   limit?: number;
+  /**
+   * Build a `SELECT VALUE COUNT(1)` query instead of returning documents.
+   */
+  countOnly?: boolean;
 }
 
-export const queryBuilder = ({ select = ['*'], where, sortBy, offset, limit }: QueryBuilderOptions): SqlQuerySpec => {
+export const queryBuilder = ({ select = ['*'], where, sortBy, offset, limit, countOnly }: QueryBuilderOptions): SqlQuerySpec => {
   const conditions: string[] = [];
   const parameters: SqlParameter[] = [];
 
@@ -25,7 +29,7 @@ export const queryBuilder = ({ select = ['*'], where, sortBy, offset, limit }: Q
 
   const columns = select.length === 1 && select.at(0) === '*' ? '*' : select.map(column => `c.${column}`).join(', ');
 
-  let query = `SELECT ${columns} FROM c${conditions.length ? ` WHERE ${conditions.join(' ')}` : ''}${sortBy ? ` ORDER BY c.${sortBy.field} ${sortBy.direction}` : ''}`;
+  let query = `SELECT ${countOnly ? 'VALUE COUNT(1)' : columns} FROM c${conditions.length ? ` WHERE ${conditions.join(' ')}` : ''}${sortBy ? ` ORDER BY c.${sortBy.field} ${sortBy.direction}` : ''}`;
 
   // Handle pagination
   // If limit is provided, always include OFFSET (default 0) and LIMIT
