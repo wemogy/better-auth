@@ -20,8 +20,14 @@ export async function getAuth() {
     usePlural: true,
   });
 
+  const secret = process.env.BETTER_AUTH_SECRET;
+  if (!secret && process.env.NODE_ENV === 'production') {
+    throw new Error('BETTER_AUTH_SECRET must be set in production. Better Auth would otherwise fall back to an insecure built-in secret.');
+  }
+
   const instance = betterAuth({
     database: adapter,
+    secret,
     emailAndPassword: {
       enabled: true,
     },

@@ -32,15 +32,27 @@ export const queryBuilder = ({ select = ['*'], where, sortBy, offset, limit, cou
   let query = `SELECT ${countOnly ? 'VALUE COUNT(1)' : columns} FROM c${conditions.length ? ` WHERE ${conditions.join(' ')}` : ''}${sortBy ? ` ORDER BY c.${sortBy.field} ${sortBy.direction}` : ''}`;
 
   // Handle pagination
+  // offset/limit are interpolated into the query text (Cosmos has no parameter
+  // binding for these), so they must be validated as non-negative integers.
+  const safeOffset = offset === undefined ? undefined : assertNonNegativeInteger(offset, 'offset');
+  const safeLimit = limit === undefined ? undefined : assertNonNegativeInteger(limit, 'limit');
+
   // If limit is provided, always include OFFSET (default 0) and LIMIT
   // If only offset is provided, include OFFSET and LIMIT 0
-  if (limit !== undefined) {
-    query += ` OFFSET ${offset ?? 0} LIMIT ${limit}`;
-  } else if (offset !== undefined && offset > 0) {
-    query += ` OFFSET ${offset} LIMIT 0`;
+  if (safeLimit !== undefined) {
+    query += ` OFFSET ${safeOffset ?? 0} LIMIT ${safeLimit}`;
+  } else if (safeOffset !== undefined && safeOffset > 0) {
+    query += ` OFFSET ${safeOffset} LIMIT 0`;
   }
 
   return { query: query.trim(), parameters };
+};
+
+const assertNonNegativeInteger = (value: number, name: string): number => {
+  if (!Number.isInteger(value) || value < 0) {
+    throw new Error(`Invalid ${name}: expected a non-negative integer, received ${value}`);
+  }
+  return value;
 };
 
 const mapCondition = (where: CleanedWhere, addParameter: (value: unknown) => string): string => {

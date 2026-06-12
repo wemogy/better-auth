@@ -309,6 +309,28 @@ describe('QueryBuilder', () => {
     });
   });
 
+  describe('pagination validation', () => {
+    it('should reject a non-integer limit', () => {
+      expect(() => queryBuilder({ limit: 1.5 })).toThrow(/limit/);
+    });
+
+    it('should reject a negative limit', () => {
+      expect(() => queryBuilder({ limit: -1 })).toThrow(/limit/);
+    });
+
+    it('should reject a non-integer offset', () => {
+      expect(() => queryBuilder({ offset: 2.7, limit: 10 })).toThrow(/offset/);
+    });
+
+    it('should reject a negative offset', () => {
+      expect(() => queryBuilder({ offset: -5, limit: 10 })).toThrow(/offset/);
+    });
+
+    it('should reject an injection attempt smuggled through limit', () => {
+      expect(() => queryBuilder({ limit: '5; DROP' as unknown as number })).toThrow(/limit/);
+    });
+  });
+
   describe('SQL injection prevention', () => {
     it('should pass quotes through as parameter values, not query text', () => {
       const where: CleanedWhere[] = [{ field: 'name', value: "O'Reilly", operator: 'eq', connector: 'AND' }];

@@ -372,6 +372,30 @@ describe('Error Handling Tests', () => {
         ).rejects.toThrow('Query too complex');
       });
     });
+
+    describe('field whitelisting (SQL injection prevention)', () => {
+      // These go through the full better-auth adapter factory, which transforms
+      // and validates where/sortBy/select field names before they ever reach the
+      // Cosmos query. An unknown or crafted identifier must never produce a
+      // successful query — it has to throw.
+      it('should reject an unknown field in a where clause', async () => {
+        await expect(adapter.findOne({ model: 'users', where: [{ field: 'nonexistent', value: 'x', operator: 'eq' }] })).rejects.toThrow();
+      });
+
+      it('should reject an injection attempt smuggled through a where field', async () => {
+        await expect(adapter.findMany({ model: 'users', where: [{ field: 'id) OR (1=1', value: 'x', operator: 'eq' }] })).rejects.toThrow();
+      });
+
+      it('should reject an injection attempt smuggled through sortBy', async () => {
+        await expect(adapter.findMany({ model: 'users', sortBy: { field: 'id ASC, c._ts; DROP', direction: 'asc' } })).rejects.toThrow();
+      });
+
+      it('should reject an unknown field in select', async () => {
+        await expect(
+          adapter.findMany({ model: 'users', where: [{ field: 'id', value: 'x', operator: 'eq' }], select: ['id', 'c.secret FROM c--'] }),
+        ).rejects.toThrow();
+      });
+    });
   });
 
   describe('Connection Error Handling', () => {

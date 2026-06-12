@@ -91,7 +91,18 @@ export const buildCosmosAdapter = async (config: CosmosAdapterConfig): Promise<A
       // this guard only prevents an unhandled rejection before that point.
       ready.catch(() => undefined);
 
-      return new CosmosAdapter(cosmos, getModelName, getFieldName, ready) as CustomAdapter;
+      // Whitelist of physical field names per model, used to reject unknown
+      // identifiers before they are interpolated into Cosmos SQL.
+      const validFields: Record<string, ReadonlySet<string>> = {};
+      for (const [model, definition] of Object.entries(schema)) {
+        const fields = new Set<string>(['id']);
+        for (const field of Object.keys(definition.fields)) {
+          fields.add(getFieldName({ model, field }));
+        }
+        validFields[model] = fields;
+      }
+
+      return new CosmosAdapter(cosmos, getModelName, getFieldName, validFields, ready) as CustomAdapter;
     },
   });
 };
