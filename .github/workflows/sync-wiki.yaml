@@ -1,0 +1,62 @@
+name: Sync docs to GitHub Wiki
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - docs/wiki/**
+      - .github/workflows/sync-wiki.yaml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: wiki-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    name: Sync wiki pages
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure git author
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Clone wiki repository
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          wiki_remote="https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.wiki.git"
+
+          if ! git clone "${wiki_remote}" wiki; then
+            echo "::error::Could not clone the GitHub Wiki repository. Enable and initialize the wiki once in the repository settings, then rerun this workflow."
+            exit 1
+          fi
+
+      - name: Copy wiki pages
+        run: |
+          set -euo pipefail
+          rsync -a --delete --exclude='.git' docs/wiki/ wiki/
+
+      - name: Push wiki changes
+        run: |
+          set -euo pipefail
+          cd wiki
+
+          if [ -z "$(git status --porcelain)" ]; then
+            echo "No wiki changes to sync."
+            exit 0
+          fi
+
+          git add .
+          git commit -m "Sync wiki docs"
+          git push

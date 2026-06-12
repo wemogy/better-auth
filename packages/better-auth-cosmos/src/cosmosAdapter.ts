@@ -18,7 +18,15 @@ export class CosmosAdapter {
   }
 
   async update<T extends ItemDefinition>({ model, where, update }: { model: string; where: Required<Where>[]; update: T }) {
+    if (!where?.length) {
+      return null;
+    }
+
     const existingItem = await this.cosmos.findOne<T>(this.getModelName(model), queryBuilder({ where }));
+    if (!existingItem) {
+      return null;
+    }
+
     const updatedItem: T = { ...existingItem, ...update };
     return await this.cosmos.update(this.getModelName(model), updatedItem);
   }
@@ -53,18 +61,20 @@ export class CosmosAdapter {
 
   async findMany<T extends ItemDefinition>({
     model,
+    select,
     where,
     sortBy,
     offset,
     limit,
   }: {
     model: string;
+    select?: string[];
     where?: CleanedWhere[];
     sortBy?: { field: string; direction: 'asc' | 'desc' };
     offset?: number;
     limit?: number;
   }) {
-    return await this.cosmos.findMany<T>(this.getModelName(model), queryBuilder({ where, sortBy, offset, limit }));
+    return await this.cosmos.findMany<T>(this.getModelName(model), queryBuilder({ select, where, sortBy, offset, limit }));
   }
 
   async count({ model, where }: { model: string; where?: CleanedWhere[] }) {

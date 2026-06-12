@@ -1,4 +1,4 @@
-import { Container, CosmosClient, CosmosClientOptions, Database, ItemDefinition } from '@azure/cosmos';
+import { Container, CosmosClient, CosmosClientOptions, Database, ItemDefinition, SqlQuerySpec } from '@azure/cosmos';
 
 export class Cosmos {
   private client: CosmosClient;
@@ -51,13 +51,13 @@ export class Cosmos {
     return resource!;
   }
 
-  public async findOne<T extends ItemDefinition>(containerName: string, query: string) {
+  public async findOne<T extends ItemDefinition>(containerName: string, query: string | SqlQuerySpec) {
     const container = this.getContainer(containerName);
     const { resources } = await container.items.query(query).fetchAll();
     return resources[0] as T | undefined;
   }
 
-  public async findMany<T extends ItemDefinition>(containerName: string, query: string) {
+  public async findMany<T extends ItemDefinition>(containerName: string, query: string | SqlQuerySpec) {
     const container = this.getContainer(containerName);
     const { resources } = await container.items.query(query).fetchAll();
     return resources as T[];

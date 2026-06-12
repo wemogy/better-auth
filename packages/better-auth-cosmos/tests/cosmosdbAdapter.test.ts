@@ -1,5 +1,5 @@
-import { runAdapterTest } from 'better-auth/adapters/test';
-import { describe, vi, beforeAll } from 'vitest';
+import { normalTestSuite, testAdapter } from '@better-auth/test-utils/adapter';
+import { vi } from 'vitest';
 import { buildCosmosAdapter } from '../src';
 
 // Mock the @azure/cosmos module
@@ -51,14 +51,85 @@ vi.mock('@azure/cosmos', () => {
                     }
                     let filtered = [...mockDataStore[containerName]];
 
-                    // Handle both string queries and QuerySpec objects
+                    // Handle both string queries and SqlQuerySpec objects
                     let sql = '';
+                    const params: Record<string, unknown> = {};
                     if (typeof querySpec === 'string') {
                       sql = querySpec;
                     } else if (querySpec && typeof (querySpec as Record<string, unknown>).query === 'string') {
-                      sql = (querySpec as Record<string, unknown>).query as string;
+                      const spec = querySpec as { query: string; parameters?: { name: string; value: unknown }[] };
+                      sql = spec.query;
+                      for (const p of spec.parameters ?? []) {
+                        params[p.name] = p.value;
+                      }
                     }
 
+                    // Evaluate a single condition fragment (e.g. "c.field >= @p0") against an item
+                    const evalFragment = (fragment: string, item: Record<string, unknown>): boolean => {
+                      const trimmed = fragment.trim();
+
+                      const isNullMatch = trimmed.match(/^(NOT\s+)?IS_NULL\(c\.(\w+)\)$/i);
+                      if (isNullMatch) {
+                        const [, not, field] = isNullMatch;
+                        const isNull = item[field] === null || item[field] === undefined;
+                        return not ? !isNull : isNull;
+                      }
+
+                      const arrayContainsMatch = trimmed.match(/^(NOT\s+)?ARRAY_CONTAINS\((@\w+),\s*c\.(\w+)\)$/i);
+                      if (arrayContainsMatch) {
+                        const [, not, param, field] = arrayContainsMatch;
+                        const values = (params[param] as unknown[]) ?? [];
+                        const contained = values.some(v => String(v) === String(item[field]));
+                        return not ? !contained : contained;
+                      }
+
+                      const stringFnMatch = trimmed.match(/^(CONTAINS|STARTSWITH|ENDSWITH)\(c\.(\w+),\s*(@\w+)(?:,\s*true)?\)$/i);
+                      if (stringFnMatch) {
+                        const [, fn, field, param] = stringFnMatch;
+                        if (item[field] === null || item[field] === undefined) {
+                          return false;
+                        }
+                        const haystack = String(item[field]).toLowerCase();
+                        const needle = String(params[param]).toLowerCase();
+                        if (fn.toUpperCase() === 'CONTAINS') return haystack.includes(needle);
+                        if (fn.toUpperCase() === 'STARTSWITH') return haystack.startsWith(needle);
+                        return haystack.endsWith(needle);
+                      }
+
+                      const comparisonMatch = trimmed.match(/^c\.(\w+)\s*(>=|<=|!=|=|>|<)\s*(@\w+)$/);
+                      if (comparisonMatch) {
+                        const [, field, operator, param] = comparisonMatch;
+                        const itemValue = item[field];
+                        const paramValue = params[param];
+                        switch (operator) {
+                          case '=':
+                            return itemValue === paramValue || String(itemValue) === String(paramValue);
+                          case '!=':
+                            return !(itemValue === paramValue || String(itemValue) === String(paramValue));
+                          case '>':
+                            return itemValue !== undefined && itemValue !== null && (itemValue as never) > (paramValue as never);
+                          case '>=':
+                            return itemValue !== undefined && itemValue !== null && (itemValue as never) >= (paramValue as never);
+                          case '<':
+                            return itemValue !== undefined && itemValue !== null && (itemValue as never) < (paramValue as never);
+                          case '<=':
+                            return itemValue !== undefined && itemValue !== null && (itemValue as never) <= (paramValue as never);
+                          default:
+                            return false;
+                        }
+                      }
+
+                      // Unknown fragment: treat as non-matching to surface parsing gaps in tests
+                      return false;
+                    };
+
+                    if (sql.includes('SELECT c.')) {
+                      // eslint-disable-next-line @typescript-eslint/no-require-imports
+                      require('fs').appendFileSync(
+                        '/tmp/mockdebug.log',
+                        `${containerName} | ${sql} | ${JSON.stringify(params)} | ${JSON.stringify(mockDataStore[containerName]?.slice(-2))}\n`,
+                      );
+                    }
                     if (sql) {
                       // Parse SELECT clause to determine which fields to return
                       const selectMatch = sql.match(/SELECT\s+(.+?)\s+FROM/i);
@@ -70,127 +141,13 @@ vi.mock('@azure/cosmos', () => {
                         }
                       }
 
-                      // Parse WHERE clauses
+                      // Parse WHERE clause: OR splits branches, AND combines fragments within a branch
                       const whereMatch = sql.match(/WHERE\s+(.+?)(?:\s+ORDER BY|\s+OFFSET|\s+LIMIT|$)/i);
                       if (whereMatch) {
-                        const conditions = whereMatch[1];
-
-                        // Check if there are OR connectors
-                        if (conditions.includes(' OR ')) {
-                          // Handle OR logic - union results from each OR branch
-                          const orParts = conditions.split(/\s+OR\s+/i);
-                          const orResults: unknown[] = [];
-                          const allItems = [...mockDataStore[containerName]];
-
-                          for (const orPart of orParts) {
-                            let partFiltered = [...allItems];
-
-                            // Apply filters from this OR part
-                            const eqMatches = Array.from(orPart.matchAll(/c\.(\w+)\s*=\s*'([^']+)'/g));
-                            for (const match of eqMatches) {
-                              const [, field, value] = match;
-                              partFiltered = partFiltered.filter(
-                                (item: unknown) => String((item as Record<string, unknown>)[field]) === String(value),
-                              );
-                            }
-
-                            const neMatches = Array.from(orPart.matchAll(/c\.(\w+)\s*!=\s*'([^']+)'/g));
-                            for (const match of neMatches) {
-                              const [, field, value] = match;
-                              partFiltered = partFiltered.filter(
-                                (item: unknown) => String((item as Record<string, unknown>)[field]) !== String(value),
-                              );
-                            }
-
-                            const inMatches = Array.from(orPart.matchAll(/c\.(\w+)\s+IN\s+\(([^)]+)\)/gi));
-                            for (const match of inMatches) {
-                              const [, field, valuesStr] = match;
-                              const values = valuesStr.split(',').map((v: string) => v.trim().replace(/^'|'$/g, ''));
-                              partFiltered = partFiltered.filter((item: unknown) =>
-                                values.includes(String((item as Record<string, unknown>)[field])),
-                              );
-                            }
-
-                            const notInMatches = Array.from(orPart.matchAll(/c\.(\w+)\s+NOT\s+IN\s+\(([^)]+)\)/gi));
-                            for (const match of notInMatches) {
-                              const [, field, valuesStr] = match;
-                              const values = valuesStr.split(',').map((v: string) => v.trim().replace(/^'|'$/g, ''));
-                              partFiltered = partFiltered.filter(
-                                (item: unknown) => !values.includes(String((item as Record<string, unknown>)[field])),
-                              );
-                            }
-
-                            // Add to results (avoid duplicates)
-                            partFiltered.forEach(item => {
-                              const itemId = (item as Record<string, unknown>).id;
-                              if (!orResults.find(r => (r as Record<string, unknown>).id === itemId)) {
-                                orResults.push(item);
-                              }
-                            });
-                          }
-                          filtered = orResults;
-                        } else {
-                          // Process all conditions sequentially (AND by default)
-                          // Parse simple equality: c.field = 'value'
-                          const eqMatches = Array.from(conditions.matchAll(/c\.(\w+)\s*=\s*'([^']+)'/g));
-                          for (const match of eqMatches) {
-                            const [, field, value] = match;
-                            filtered = filtered.filter((item: unknown) => String((item as Record<string, unknown>)[field]) === String(value));
-                          }
-
-                          // Parse != operator
-                          const neMatches = Array.from(conditions.matchAll(/c\.(\w+)\s*!=\s*'([^']+)'/g));
-                          for (const match of neMatches) {
-                            const [, field, value] = match;
-                            filtered = filtered.filter((item: unknown) => String((item as Record<string, unknown>)[field]) !== String(value));
-                          }
-
-                          // Parse IN clause: c.field IN ('val1', 'val2')
-                          const inMatches = Array.from(conditions.matchAll(/c\.(\w+)\s+IN\s+\(([^)]+)\)/gi));
-                          for (const match of inMatches) {
-                            const [, field, valuesStr] = match;
-                            const values = valuesStr.split(',').map((v: string) => v.trim().replace(/^'|'$/g, ''));
-                            filtered = filtered.filter((item: unknown) => values.includes(String((item as Record<string, unknown>)[field])));
-                          }
-
-                          // Parse NOT IN
-                          const notInMatches = Array.from(conditions.matchAll(/c\.(\w+)\s+NOT\s+IN\s+\(([^)]+)\)/gi));
-                          for (const match of notInMatches) {
-                            const [, field, valuesStr] = match;
-                            const values = valuesStr.split(',').map((v: string) => v.trim().replace(/^'|'$/g, ''));
-                            filtered = filtered.filter((item: unknown) => !values.includes(String((item as Record<string, unknown>)[field])));
-                          }
-                        }
-
-                        // Parse CONTAINS
-                        const containsMatches = Array.from(conditions.matchAll(/CONTAINS\(c\.(\w+),\s*'([^']+)'/gi));
-                        for (const match of containsMatches) {
-                          const [, field, value] = match;
-                          filtered = filtered.filter((item: unknown) => {
-                            const itemRecord = item as Record<string, unknown>;
-                            return itemRecord[field] && String(itemRecord[field]).toLowerCase().includes(value.toLowerCase());
-                          });
-                        }
-
-                        // Parse STARTSWITH
-                        const startsWithMatches = Array.from(conditions.matchAll(/STARTSWITH\(c\.(\w+),\s*'([^']+)'/gi));
-                        for (const match of startsWithMatches) {
-                          const [, field, value] = match;
-                          filtered = filtered.filter((item: unknown) => {
-                            const itemRecord = item as Record<string, unknown>;
-                            return itemRecord[field] && String(itemRecord[field]).toLowerCase().startsWith(value.toLowerCase());
-                          });
-                        }
-
-                        // Parse ENDSWITH
-                        const endsWithMatches = Array.from(conditions.matchAll(/ENDSWITH\(c\.(\w+),\s*'([^']+)'/gi));
-                        for (const match of endsWithMatches) {
-                          const [, field, value] = match;
-                          filtered = filtered.filter((item: unknown) => {
-                            const itemRecord = item as Record<string, unknown>;
-                            return itemRecord[field] && String(itemRecord[field]).toLowerCase().endsWith(value.toLowerCase());
-                          });
-                        }
+                        const orParts = whereMatch[1].split(/\s+OR\s+/i).map(part => part.split(/\s+AND\s+/i));
+                        filtered = filtered.filter(item =>
+                          orParts.some(fragments => fragments.every(fragment => evalFragment(fragment, item as Record<string, unknown>))),
+                        );
                       }
 
                       // Parse ORDER BY
@@ -198,14 +155,16 @@ vi.mock('@azure/cosmos', () => {
                       if (orderByMatch) {
                         const [, field, direction] = orderByMatch;
                         filtered.sort((a: unknown, b: unknown) => {
-                          const aRecord = a as Record<string, unknown>;
-                          const bRecord = b as Record<string, unknown>;
-                          const aVal = aRecord[field];
-                          const bVal = bRecord[field];
-                          // Convert to comparable values for sorting
-                          const aStr = String(aVal ?? '');
-                          const bStr = String(bVal ?? '');
-                          const comparison = aStr < bStr ? -1 : aStr > bStr ? 1 : 0;
+                          const aVal = (a as Record<string, unknown>)[field];
+                          const bVal = (b as Record<string, unknown>)[field];
+                          let comparison: number;
+                          if (typeof aVal === 'number' && typeof bVal === 'number') {
+                            comparison = aVal - bVal;
+                          } else {
+                            const aStr = String(aVal ?? '');
+                            const bStr = String(bVal ?? '');
+                            comparison = aStr < bStr ? -1 : aStr > bStr ? 1 : 0;
+                          }
                           return direction.toUpperCase() === 'DESC' ? -comparison : comparison;
                         });
                       }
@@ -230,17 +189,12 @@ vi.mock('@azure/cosmos', () => {
                         filtered = filtered.map((item: unknown) => {
                           const itemRecord = item as Record<string, unknown>;
                           const selected: Record<string, unknown> = {};
-                          // Always include id if it exists
-                          if (itemRecord.id !== undefined) {
-                            selected.id = itemRecord.id;
-                          }
                           selectFields!.forEach(field => {
                             if (field in itemRecord) {
                               selected[field] = itemRecord[field];
                             }
                           });
-                          // If no fields were selected (excluding id), return the original item
-                          return Object.keys(selected).length > (itemRecord.id !== undefined ? 1 : 0) ? selected : item;
+                          return selected;
                         });
                       }
                     }
@@ -284,30 +238,32 @@ vi.mock('@azure/cosmos', () => {
   };
 });
 
-describe('My Adapter Tests', () => {
-  beforeAll(() => {
-    vi.clearAllMocks();
-    // Reset data store before all tests
-    Object.keys(mockDataStore).forEach(key => delete mockDataStore[key]);
-  });
-
-  runAdapterTest({
-    getAdapter: async (betterAuthOptions = {}) => {
-      const adapter = await buildCosmosAdapter({
-        adapterId: 'cosmos-adapter',
-        adapterName: 'Cosmos Adapter',
-        dbCredentials: {
-          endpoint: 'https://test.documents.azure.com:443/',
-          key: 'test-key',
-        },
-        dbName: 'better-auth',
-        usePlural: true,
-        debugLogs: {
-          // If your adapter config allows passing in debug logs, then pass this here.
-          isRunningAdapterTests: true, // This is our super secret flag to let us know to only log debug logs if a test fails.
-        },
-      });
-      return adapter(betterAuthOptions);
-    },
-  });
+const { execute } = await testAdapter({
+  adapter: async () => {
+    return await buildCosmosAdapter({
+      adapterId: 'cosmos-adapter',
+      adapterName: 'Cosmos Adapter',
+      dbCredentials: {
+        endpoint: 'https://test.documents.azure.com:443/',
+        key: 'test-key',
+      },
+      dbName: 'better-auth',
+      usePlural: true,
+      debugLogs: {
+        isRunningAdapterTests: true, // Only log debug logs if a test fails.
+      },
+    });
+  },
+  runMigrations: () => {
+    // No migrations needed: containers are created on adapter initialization
+    // and the mocked Cosmos client stores data in memory.
+  },
+  additionalCleanups: () => {
+    Object.keys(mockDataStore).forEach(key => {
+      delete mockDataStore[key];
+    });
+  },
+  tests: [normalTestSuite()],
 });
+
+execute();

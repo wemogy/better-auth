@@ -1,4 +1,5 @@
-import { CleanedWhere } from 'better-auth/adapters';
+import type { SqlParameter, SqlQuerySpec } from '@azure/cosmos';
+import type { CleanedWhere } from 'better-auth/adapters';
 
 interface QueryBuilderOptions {
   select?: string[];
@@ -7,11 +8,19 @@ interface QueryBuilderOptions {
   offset?: number;
   limit?: number;
 }
-export const queryBuilder = ({ select = ['*'], where, sortBy, offset, limit }: QueryBuilderOptions) => {
+
+export const queryBuilder = ({ select = ['*'], where, sortBy, offset, limit }: QueryBuilderOptions): SqlQuerySpec => {
   const conditions: string[] = [];
+  const parameters: SqlParameter[] = [];
+
+  const addParameter = (value: unknown): string => {
+    const name = `@p${parameters.length}`;
+    parameters.push({ name, value: value as SqlParameter['value'] });
+    return name;
+  };
 
   for (const w of where ?? []) {
-    conditions.push(`${conditions.length ? ` ${w.connector} ` : ''}${mapCondition(w)}`);
+    conditions.push(`${conditions.length ? ` ${w.connector} ` : ''}${mapCondition(w, addParameter)}`);
   }
 
   const columns = select.length === 1 && select.at(0) === '*' ? '*' : select.map(column => `c.${column}`).join(', ');
@@ -27,24 +36,33 @@ export const queryBuilder = ({ select = ['*'], where, sortBy, offset, limit }: Q
     query += ` OFFSET ${offset} LIMIT 0`;
   }
 
-  return query.trim();
+  return { query: query.trim(), parameters };
 };
 
-const mapCondition = (where: CleanedWhere) => {
+const mapCondition = (where: CleanedWhere, addParameter: (value: unknown) => string): string => {
   if (where.operator === 'contains') {
-    return `CONTAINS(c.${where.field}, '${where.value}', true)`;
+    return `CONTAINS(c.${where.field}, ${addParameter(where.value)}, true)`;
   }
   if (where.operator === 'starts_with') {
-    return `STARTSWITH(c.${where.field}, '${where.value}', true)`;
+    return `STARTSWITH(c.${where.field}, ${addParameter(where.value)}, true)`;
   }
   if (where.operator === 'ends_with') {
-    return `ENDSWITH(c.${where.field}, '${where.value}', true)`;
+    return `ENDSWITH(c.${where.field}, ${addParameter(where.value)}, true)`;
   }
   if (where.operator === 'in' && Array.isArray(where.value)) {
-    return `c.${where.field} IN (${where.value.map(v => `'${v}'`).join(', ')})`;
+    return `ARRAY_CONTAINS(${addParameter(where.value)}, c.${where.field})`;
   }
   if (where.operator === 'not_in' && Array.isArray(where.value)) {
-    return `c.${where.field} NOT IN (${where.value.map(v => `'${v}'`).join(', ')})`;
+    return `NOT ARRAY_CONTAINS(${addParameter(where.value)}, c.${where.field})`;
+  }
+
+  // Comparing against null with `=` / `!=` yields undefined in Cosmos SQL,
+  // so null checks need the IS_NULL builtin instead.
+  if (where.value === null) {
+    if (where.operator === 'ne') {
+      return `NOT IS_NULL(c.${where.field})`;
+    }
+    return `IS_NULL(c.${where.field})`;
   }
 
   let mappedOperator: string;
@@ -72,5 +90,5 @@ const mapCondition = (where: CleanedWhere) => {
       break;
   }
 
-  return `c.${where.field} ${mappedOperator} '${where.value}'`;
+  return `c.${where.field} ${mappedOperator} ${addParameter(where.value)}`;
 };
