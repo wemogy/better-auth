@@ -6,10 +6,18 @@ import { queryBuilder } from './util/queryBuilder';
 export class CosmosAdapter {
   private cosmos: Cosmos;
   private readonly getModelName: (model: string) => string;
+  private readonly getFieldName: (args: { model: string; field: string }) => string;
 
-  constructor(cosmos: Cosmos, getModelName: (model: string) => string) {
+  constructor(cosmos: Cosmos, getModelName: (model: string) => string, getFieldName: (args: { model: string; field: string }) => string) {
     this.cosmos = cosmos;
     this.getModelName = getModelName;
+    this.getFieldName = getFieldName;
+  }
+
+  // `select` arrives with logical field names and has to be mapped to the
+  // actual document property names (devs can rename fields via better-auth options).
+  private mapSelect(model: string, select?: string[]): string[] | undefined {
+    return select?.map(field => this.getFieldName({ model, field }));
   }
 
   async create<T extends ItemDefinition>({ model, data, select: _select }: { model: string; data: T; select?: string[] }) {
@@ -56,7 +64,7 @@ export class CosmosAdapter {
   }
 
   async findOne<T extends ItemDefinition>({ model, select, where }: { model: string; select?: string[]; where: CleanedWhere[] }) {
-    return await this.cosmos.findOne<T>(this.getModelName(model), queryBuilder({ select, where }));
+    return await this.cosmos.findOne<T>(this.getModelName(model), queryBuilder({ select: this.mapSelect(model, select), where }));
   }
 
   async findMany<T extends ItemDefinition>({
@@ -74,7 +82,10 @@ export class CosmosAdapter {
     offset?: number;
     limit?: number;
   }) {
-    return await this.cosmos.findMany<T>(this.getModelName(model), queryBuilder({ select, where, sortBy, offset, limit }));
+    return await this.cosmos.findMany<T>(
+      this.getModelName(model),
+      queryBuilder({ select: this.mapSelect(model, select), where, sortBy, offset, limit }),
+    );
   }
 
   async count({ model, where }: { model: string; where?: CleanedWhere[] }) {

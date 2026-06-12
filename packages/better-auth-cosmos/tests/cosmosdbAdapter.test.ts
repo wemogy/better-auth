@@ -123,13 +123,6 @@ vi.mock('@azure/cosmos', () => {
                       return false;
                     };
 
-                    if (sql.includes('SELECT c.')) {
-                      // eslint-disable-next-line @typescript-eslint/no-require-imports
-                      require('fs').appendFileSync(
-                        '/tmp/mockdebug.log',
-                        `${containerName} | ${sql} | ${JSON.stringify(params)} | ${JSON.stringify(mockDataStore[containerName]?.slice(-2))}\n`,
-                      );
-                    }
                     if (sql) {
                       // Parse SELECT clause to determine which fields to return
                       const selectMatch = sql.match(/SELECT\s+(.+?)\s+FROM/i);
@@ -238,22 +231,24 @@ vi.mock('@azure/cosmos', () => {
   };
 });
 
-const { execute } = await testAdapter({
-  adapter: async () => {
-    return await buildCosmosAdapter({
-      adapterId: 'cosmos-adapter',
-      adapterName: 'Cosmos Adapter',
-      dbCredentials: {
-        endpoint: 'https://test.documents.azure.com:443/',
-        key: 'test-key',
-      },
-      dbName: 'better-auth',
-      usePlural: true,
-      debugLogs: {
-        isRunningAdapterTests: true, // Only log debug logs if a test fails.
-      },
-    });
+// Build the adapter factory once; field/model mapping is derived from the
+// better-auth options passed at each factory invocation, so reuse is safe.
+const cosmosAdapterFactory = await buildCosmosAdapter({
+  adapterId: 'cosmos-adapter',
+  adapterName: 'Cosmos Adapter',
+  dbCredentials: {
+    endpoint: 'https://test.documents.azure.com:443/',
+    key: 'test-key',
   },
+  dbName: 'better-auth',
+  usePlural: true,
+  debugLogs: {
+    isRunningAdapterTests: true, // Only log debug logs if a test fails.
+  },
+});
+
+const { execute } = await testAdapter({
+  adapter: () => cosmosAdapterFactory,
   runMigrations: () => {
     // No migrations needed: containers are created on adapter initialization
     // and the mocked Cosmos client stores data in memory.

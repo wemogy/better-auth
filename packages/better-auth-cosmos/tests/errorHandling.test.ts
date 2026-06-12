@@ -492,7 +492,7 @@ describe('Error Handling Tests', () => {
           model: 'users',
           where: [{ field: 'invalid.field.name', value: 'test', operator: 'eq' }],
         }),
-      ).rejects.toThrow('Model \"users\" not found in schema');
+      ).rejects.toThrow('Model "users" not found in schema');
     });
 
     it('should handle malformed data in create operations', async () => {
@@ -551,7 +551,7 @@ describe('Error Handling Tests', () => {
           model: 'users',
           data: { invalidField: { nested: { deep: { value: 'too deep' } } } },
         }),
-      ).rejects.toThrow('Model \"users\" not found in schema');
+      ).rejects.toThrow('Model "users" not found in schema');
     });
   });
 
@@ -610,7 +610,7 @@ describe('Error Handling Tests', () => {
         },
       } as Parameters<typeof adapterFactory>[0]);
 
-      await expect(adapter.create({ model: 'users', data: { id: '123', name: 'Test' } })).rejects.toThrow('Model \"users\" not found in schema');
+      await expect(adapter.create({ model: 'users', data: { id: '123', name: 'Test' } })).rejects.toThrow('Model "users" not found in schema');
 
       consoleSpy.mockRestore();
     });

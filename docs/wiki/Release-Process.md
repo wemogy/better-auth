@@ -23,12 +23,6 @@ The `release` job:
 
 Publishing uses `GITHUB_TOKEN` for GitHub Packages.
 
-## Container Release
-
-The `docker-build` job delegates image build and push to `.github/actions/containers`.
-
-The current workflow references an `apps/idp-backend` Dockerfile path. Confirm that path exists before relying on the container job for a release.
-
 ## Pull Request Checks
 
 `.github/workflows/pr-code-style.yaml` runs on pull requests targeting `main`:
