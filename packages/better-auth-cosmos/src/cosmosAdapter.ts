@@ -7,11 +7,21 @@ export class CosmosAdapter {
   private cosmos: Cosmos;
   private readonly getModelName: (model: string) => string;
   private readonly getFieldName: (args: { model: string; field: string }) => string;
+  /**
+   * Resolves once all containers required by the active better-auth schema exist.
+   */
+  private readonly ready: Promise<void>;
 
-  constructor(cosmos: Cosmos, getModelName: (model: string) => string, getFieldName: (args: { model: string; field: string }) => string) {
+  constructor(
+    cosmos: Cosmos,
+    getModelName: (model: string) => string,
+    getFieldName: (args: { model: string; field: string }) => string,
+    ready: Promise<void> = Promise.resolve(),
+  ) {
     this.cosmos = cosmos;
     this.getModelName = getModelName;
     this.getFieldName = getFieldName;
+    this.ready = ready;
   }
 
   // `select` arrives with logical field names and has to be mapped to the
@@ -22,6 +32,7 @@ export class CosmosAdapter {
 
   async create<T extends ItemDefinition>({ model, data, select: _select }: { model: string; data: T; select?: string[] }) {
     void _select;
+    await this.ready;
     return await this.cosmos.create(this.getModelName(model), data);
   }
 
@@ -30,6 +41,7 @@ export class CosmosAdapter {
       return null;
     }
 
+    await this.ready;
     const existingItem = await this.cosmos.findOne<T>(this.getModelName(model), queryBuilder({ where }));
     if (!existingItem) {
       return null;
@@ -40,6 +52,7 @@ export class CosmosAdapter {
   }
 
   async updateMany<T extends ItemDefinition>({ model, where, update }: { model: string; where: CleanedWhere[]; update: T }) {
+    await this.ready;
     const existingItems = await this.cosmos.findMany(this.getModelName(model), queryBuilder({ where }));
     const updated = await Promise.all(
       existingItems.map(item => {
@@ -51,6 +64,7 @@ export class CosmosAdapter {
   }
 
   async delete<T extends ItemDefinition>({ model, where }: { model: string; where?: CleanedWhere[] }) {
+    await this.ready;
     const existingItem = await this.cosmos.findOne<T>(this.getModelName(model), queryBuilder({ where }));
     if (existingItem?.id) {
       await this.cosmos.delete(this.getModelName(model), existingItem as T & { id: string });
@@ -58,6 +72,7 @@ export class CosmosAdapter {
   }
 
   async deleteMany<T extends ItemDefinition>({ model, where }: { model: string; where?: CleanedWhere[] }) {
+    await this.ready;
     const existingItems = await this.cosmos.findMany<T>(this.getModelName(model), queryBuilder({ where }));
     const deleted = await Promise.all(
       existingItems.filter(item => item.id).map(item => this.cosmos.delete(this.getModelName(model), item as T & { id: string })),
@@ -66,6 +81,7 @@ export class CosmosAdapter {
   }
 
   async findOne<T extends ItemDefinition>({ model, select, where }: { model: string; select?: string[]; where: CleanedWhere[] }) {
+    await this.ready;
     return await this.cosmos.findOne<T>(this.getModelName(model), queryBuilder({ select: this.mapSelect(model, select), where }));
   }
 
@@ -84,6 +100,7 @@ export class CosmosAdapter {
     offset?: number;
     limit?: number;
   }) {
+    await this.ready;
     return await this.cosmos.findMany<T>(
       this.getModelName(model),
       queryBuilder({ select: this.mapSelect(model, select), where, sortBy, offset, limit }),
@@ -91,6 +108,7 @@ export class CosmosAdapter {
   }
 
   async count({ model, where }: { model: string; where?: CleanedWhere[] }) {
+    await this.ready;
     return await this.cosmos.count(this.getModelName(model), queryBuilder({ where, countOnly: true }));
   }
 }

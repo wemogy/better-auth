@@ -60,24 +60,7 @@ const defaultPartitionKeys: Record<string, string> = {
 export const buildCosmosAdapter = async (config: CosmosAdapterConfig): Promise<AdapterFactory<BetterAuthOptions>> => {
   const { adapterId, adapterName, dbCredentials, dbName, debugLogs = false, usePlural = false, partitionKeys } = config;
 
-  // Create Cosmos instance with known tables including plugin tables
-  const baseContainerNames = [
-    'user',
-    'session',
-    'verification',
-    'account',
-    'organization',
-    'member',
-    'team',
-    'invitation',
-    'teamMember',
-    'twoFactor',
-  ];
-  const containers = baseContainerNames.map(name => ({
-    name,
-    partitionKey: partitionKeys?.[name] ?? defaultPartitionKeys[name] ?? '/id',
-  }));
-  const cosmos = await Cosmos.create(dbCredentials, dbName, containers, usePlural);
+  const cosmos = await Cosmos.create(dbCredentials, dbName);
 
   return createAdapterFactory({
     config: {
@@ -94,11 +77,21 @@ export const buildCosmosAdapter = async (config: CosmosAdapterConfig): Promise<A
     adapter: ({ options: _options, schema, debugLog, getModelName, getFieldName, getFieldAttributes }) => {
       // Mark parameters as intentionally unused to match Better Auth adapter signature
       void _options;
-      void schema;
       void debugLog;
       void getFieldAttributes;
 
-      return new CosmosAdapter(cosmos, getModelName, getFieldName) as CustomAdapter;
+      // Derive containers from the schema, which contains exactly the models
+      // required by the active better-auth plugins (including third-party ones).
+      const containers = Object.keys(schema).map(model => ({
+        name: getModelName(model),
+        partitionKey: partitionKeys?.[model] ?? defaultPartitionKeys[model] ?? '/id',
+      }));
+      const ready = cosmos.ensureContainers(containers);
+      // Container creation failures surface on the first adapter operation;
+      // this guard only prevents an unhandled rejection before that point.
+      ready.catch(() => undefined);
+
+      return new CosmosAdapter(cosmos, getModelName, getFieldName, ready) as CustomAdapter;
     },
   });
 };

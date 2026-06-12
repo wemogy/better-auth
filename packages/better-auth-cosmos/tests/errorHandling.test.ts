@@ -82,7 +82,7 @@ describe('Error Handling Tests', () => {
       ).rejects.toThrow('Database creation failed');
     });
 
-    it('should handle container creation failure', async () => {
+    it('should surface container creation failure on first adapter operation', async () => {
       const credentials = { endpoint: 'test-endpoint', key: 'test-key' };
 
       const mockClient = {
@@ -98,15 +98,18 @@ describe('Error Handling Tests', () => {
       };
       mockCosmosClientInstance = mockClient;
 
-      await expect(
-        buildCosmosAdapter({
-          adapterId: 'test-adapter',
-          adapterName: 'Test Adapter',
-          dbCredentials: credentials,
-          dbName: 'test-db',
-          usePlural: true,
-        }),
-      ).rejects.toThrow('Container creation failed');
+      // Containers are created lazily from the better-auth schema when the
+      // adapter is initialized, so building the factory itself succeeds.
+      const factory = await buildCosmosAdapter({
+        adapterId: 'test-adapter',
+        adapterName: 'Test Adapter',
+        dbCredentials: credentials,
+        dbName: 'test-db',
+        usePlural: true,
+      });
+      const adapter = factory({});
+
+      await expect(adapter.findOne({ model: 'user', where: [{ field: 'id', value: '123' }] })).rejects.toThrow('Container creation failed');
     });
   });
 

@@ -43,7 +43,7 @@ The demo app also accepts `COSMOS_ENDPOINT` and `COSMOS_KEY` as aliases.
 
 ## Server Configuration
 
-Create an async auth initializer because `buildCosmosAdapter` creates the Cosmos database and containers before returning the Better Auth adapter factory.
+Create an async auth initializer because `buildCosmosAdapter` creates the Cosmos database before returning the Better Auth adapter factory.
 
 ```ts
 import { betterAuth } from 'better-auth';
@@ -100,4 +100,4 @@ export async function POST(request: Request) {
 
 ## First Run
 
-On startup, the adapter calls Cosmos DB `createIfNotExists` for the configured database and the known Better Auth containers. No separate migration command is required for the current adapter implementation.
+`buildCosmosAdapter` creates the configured database with `createIfNotExists` on startup. Containers are derived from the Better Auth schema — exactly the models required by the active plugins — and created lazily when the adapter initializes. No separate migration command is required; adding a plugin provisions its containers automatically on the next request.

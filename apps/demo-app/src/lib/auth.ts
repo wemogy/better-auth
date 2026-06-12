@@ -28,7 +28,7 @@ export async function getAuth() {
     trustedOrigins: ['http://localhost:3000', 'http://localhost:5173'],
     baseURL: process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_AUTH_URL || 'http://localhost:3000',
     basePath: '/api/auth',
-  }) as ReturnType<typeof betterAuth>;
+  }) as unknown as ReturnType<typeof betterAuth>;
 
   authInstance = instance;
   return instance;

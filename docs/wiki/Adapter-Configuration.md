@@ -4,14 +4,15 @@
 
 ## Options
 
-| Option          | Type                      | Required | Default | Notes                                                                              |
-| --------------- | ------------------------- | -------- | ------- | ---------------------------------------------------------------------------------- |
-| `adapterId`     | `string`                  | Yes      | None    | Unique adapter identifier passed to Better Auth.                                   |
-| `adapterName`   | `string`                  | Yes      | None    | Human-readable name for logs and debug output.                                     |
-| `dbCredentials` | `CosmosClientOptions`     | Yes      | None    | Passed directly to `new CosmosClient(...)`; usually includes `endpoint` and `key`. |
-| `dbName`        | `string`                  | Yes      | None    | Cosmos DB database name. The adapter creates it if missing.                        |
-| `debugLogs`     | `DBAdapterDebugLogOption` | No       | `false` | Better Auth adapter debug logging setting.                                         |
-| `usePlural`     | `boolean`                 | No       | `false` | Creates plural container names and tells Better Auth to use plural model names.    |
+| Option          | Type                      | Required | Default | Notes                                                                                                                                                              |
+| --------------- | ------------------------- | -------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `adapterId`     | `string`                  | Yes      | None    | Unique adapter identifier passed to Better Auth.                                                                                                                   |
+| `adapterName`   | `string`                  | Yes      | None    | Human-readable name for logs and debug output.                                                                                                                     |
+| `dbCredentials` | `CosmosClientOptions`     | Yes      | None    | Passed directly to `new CosmosClient(...)`; usually includes `endpoint` and `key`.                                                                                 |
+| `dbName`        | `string`                  | Yes      | None    | Cosmos DB database name. The adapter creates it if missing.                                                                                                        |
+| `debugLogs`     | `DBAdapterDebugLogOption` | No       | `false` | Better Auth adapter debug logging setting.                                                                                                                         |
+| `usePlural`     | `boolean`                 | No       | `false` | Creates plural container names and tells Better Auth to use plural model names.                                                                                    |
+| `partitionKeys` | `Record<string, string>`  | No       | None    | Partition key path per model, e.g. `{ session: '/userId' }`. Overrides the built-in defaults documented in [Data Model and Containers](Data-Model-and-Containers). |
 
 ## Recommended Defaults
 

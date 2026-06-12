@@ -16,6 +16,7 @@ export class Cosmos {
    * Needed for deletes, where the partition key value must be supplied explicitly.
    */
   private partitionKeyFields: Record<string, string> = {};
+  private ensuredContainers = new Map<string, Promise<unknown>>();
 
   private constructor(credentials: CosmosClientOptions) {
     this.client = new CosmosClient(credentials);
@@ -45,12 +46,30 @@ export class Cosmos {
 
   private async createContainers(containers: ContainerSpec[], usePlural?: boolean): Promise<void> {
     await Promise.all(
-      containers.map(({ name, partitionKey = '/id' }) => {
+      containers.map(({ name, partitionKey }) => {
         const finalName = usePlural ? Cosmos.pluralize(name) : name;
-        this.partitionKeyFields[finalName] = partitionKey.replace(/^\//, '');
-        return this.database.containers.createIfNotExists({ id: finalName, partitionKey: { paths: [partitionKey] } });
+        return this.ensureContainer({ name: finalName, partitionKey });
       }),
     );
+  }
+
+  /**
+   * Create the given containers if they don't exist yet. Idempotent: each
+   * container is only created once per Cosmos instance. Names are expected
+   * to be final container names (custom model names / pluralization applied).
+   */
+  public async ensureContainers(containers: ContainerSpec[]): Promise<void> {
+    await Promise.all(containers.map(container => this.ensureContainer(container)));
+  }
+
+  private ensureContainer({ name, partitionKey = '/id' }: ContainerSpec): Promise<unknown> {
+    let pending = this.ensuredContainers.get(name);
+    if (!pending) {
+      this.partitionKeyFields[name] = partitionKey.replace(/^\//, '');
+      pending = this.database.containers.createIfNotExists({ id: name, partitionKey: { paths: [partitionKey] } });
+      this.ensuredContainers.set(name, pending);
+    }
+    return pending;
   }
 
   private getContainer(containerName: string): Container {

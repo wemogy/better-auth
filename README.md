@@ -77,36 +77,15 @@ pnpm --filter @wemogy/better-auth-cosmos test
 
 ## Better Auth Plugin Support
 
-Better Auth ships a broad first-party plugin catalog. The [official plugin docs](https://better-auth.com/docs/plugins) currently group plugins into authentication, authorization and management, API and tokens, OAuth/OIDC providers, payments and billing, security and utilities, and analytics.
+The adapter derives its Cosmos DB containers from the Better Auth schema at runtime. The schema contains exactly the models required by the active plugins, so any plugin that stores data through the Better Auth database layer gets its containers created automatically — including third-party plugins the adapter has never seen.
 
-This adapter should only claim support for plugins whose persistence model is provisioned and tested in this repository.
-
-### Supported Now
-
-| Better Auth feature          | Status                             | Cosmos DB containers                                         |
-| ---------------------------- | ---------------------------------- | ------------------------------------------------------------ |
-| Core Better Auth persistence | Supported                          | `user`, `session`, `verification`, `account`                 |
-| Email and password           | Supported through core persistence | Uses core user/account records; enabled in the demo app.     |
-| Organization                 | Supported at container level       | `organization`, `member`, `team`, `invitation`, `teamMember` |
-| Two-Factor Authentication    | Supported at container level       | `twoFactor`                                                  |
+- Models the adapter knows get an optimized partition key (for example `session` is partitioned by `/token`, the lookup performed on every authenticated request).
+- Unknown plugin models fall back to `/id` as the partition key. Override per model through the `partitionKeys` config option.
+- Containers are created lazily with `createIfNotExists` when the adapter is initialized; nothing is provisioned for plugins that are not active.
 
 `usePlural: true` pluralizes the container names, for example `users`, `sessions`, `organizations`, and `twoFactors`.
 
-### Not Yet Claimed As Supported
-
-These Better Auth first-party plugins exist in the upstream plugin catalog, but this repository does not yet provide explicit support documentation or dedicated compatibility tests for them:
-
-| Category                     | Plugins                                                                                                                                            |
-| ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Authentication               | Passkey, Magic Link, Email OTP, Phone Number, Anonymous, Username, One Tap, Sign In With Ethereum, Generic OAuth, Multi Session, Last Login Method |
-| Authorization and Management | Admin, SSO, SCIM                                                                                                                                   |
-| API and Tokens               | Agent Auth, API Key, JWT, Bearer, One-Time Token, OAuth Proxy                                                                                      |
-| OAuth and OIDC Providers     | OAuth 2.1 Provider, OIDC Provider, MCP, Device Authorization                                                                                       |
-| Payments and Billing         | Stripe, Polar, Autumn Billing, Creem, Dodo Payments, Commet                                                                                        |
-| Security and Utilities       | Captcha, Have I Been Pwned, i18n, Open API, Test Utils                                                                                             |
-| Analytics and Tracking       | Dub                                                                                                                                                |
-
-Some plugins may work without new containers because they only add fields, endpoints, or secondary-storage behavior. Treat them as unvalidated until this repository adds plugin-specific tests and documentation.
+Verified end-to-end against a real Cosmos DB account: core persistence (email/password sign-up, sign-in, session lookup, sign-out) plus container provisioning for the Two-Factor and OIDC Provider plugins. Plugins beyond that are expected to work through the schema-driven mechanism but have no dedicated compatibility tests in this repository yet.
 
 ## Development Commands
 
