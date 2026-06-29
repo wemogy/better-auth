@@ -3,12 +3,10 @@
 import { useSignoutClient } from '@/hooks/useSignoutClient';
 import { useUserClient } from '@/hooks/useUserClient';
 import Link from 'next/link';
-import { getTenantIdFromHostname } from '@/lib/subdomain';
 
 export default function DashboardPage() {
   const { user, isLoading } = useUserClient();
   const { signOut } = useSignoutClient();
-  const tenantId = getTenantIdFromHostname();
 
   if (isLoading) {
     return (
@@ -35,11 +33,6 @@ export default function DashboardPage() {
     <div className="flex min-h-screen flex-col items-center justify-center bg-zinc-50 font-sans dark:bg-black">
       <div className="w-full max-w-2xl rounded-lg bg-white p-8 shadow-lg dark:bg-zinc-900">
         <h1 className="mb-2 text-2xl font-semibold text-black dark:text-zinc-50">Dashboard</h1>
-        {tenantId && (
-          <p className="mb-6 text-sm text-zinc-600 dark:text-zinc-400">
-            Current Tenant: <span className="font-medium">{tenantId}</span>
-          </p>
-        )}
         <div className="mb-6 space-y-4">
           <div>
             <p className="text-sm text-zinc-600 dark:text-zinc-400">Email:</p>

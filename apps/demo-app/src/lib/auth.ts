@@ -1,6 +1,5 @@
 import { betterAuth } from 'better-auth';
 import { buildCosmosAdapter } from '@wemogy/better-auth-cosmos';
-import { multiTenancyPlugin } from '@wemogy/better-auth-multi-tenancy';
 
 let authInstance: ReturnType<typeof betterAuth> | null = null;
 
@@ -21,23 +20,22 @@ export async function getAuth() {
     usePlural: true,
   });
 
-  authInstance = betterAuth({
+  const secret = process.env.BETTER_AUTH_SECRET;
+  if (!secret && process.env.NODE_ENV === 'production') {
+    throw new Error('BETTER_AUTH_SECRET must be set in production. Better Auth would otherwise fall back to an insecure built-in secret.');
+  }
+
+  const instance = betterAuth({
     database: adapter,
+    secret,
     emailAndPassword: {
       enabled: true,
     },
-    plugins: [multiTenancyPlugin()],
-    trustedOrigins: [
-      'http://localhost:3000',
-      'http://localhost:5173',
-      // Add subdomain patterns for localhost
-      'http://*.localhost:3000',
-      'http://*.127.0.0.1.nip.io',
-      '*',
-    ],
+    trustedOrigins: ['http://localhost:3000', 'http://localhost:5173'],
     baseURL: process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_AUTH_URL || 'http://localhost:3000',
     basePath: '/api/auth',
-  });
+  }) as unknown as ReturnType<typeof betterAuth>;
 
-  return authInstance;
+  authInstance = instance;
+  return instance;
 }

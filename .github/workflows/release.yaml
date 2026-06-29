@@ -14,11 +14,11 @@ jobs:
       next-version: ${{ steps.get-release-version.outputs.version }}
       next-version-name: ${{ steps.get-release-version.outputs.version-name }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           fetch-depth: 0
 
-      - uses: wemogy/get-release-version-action@v4.3.2
+      - uses: wemogy/get-release-version-action@32b677e3cfaf892cf69cd32ddf7bf846142d857f # v4.3.2
         id: get-release-version
         with:
           mode: semantic
@@ -36,7 +36,7 @@ jobs:
     needs:
       - get-version
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Set up Node
         uses: ./.github/actions/setup-node
@@ -55,32 +55,9 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Create GitHub release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
           tag_name: ${{ needs.get-version.outputs.next-version-name }}
           name: Version ${{ needs.get-version.outputs.next-version }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  docker-build:
-    name: Build and push Docker image
-    runs-on: ubuntu-latest
-    needs:
-      - get-version
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Build and push idp-backend to Azure Container Registry
-        uses: ./.github/actions/containers
-        with:
-          container-registry-server: ${{ secrets.CONTAINER_REGISTRY_LOGIN_SERVER }}
-          container-registry-username: ${{ secrets.CONTAINER_REGISTRY_USERNAME }}
-          container-registry-password: ${{ secrets.CONTAINER_REGISTRY_PASSWORD }}
-          wemogy-packages-token: ${{ secrets.WEMOGY_PACKAGES_TOKEN }}
-          version: ${{ needs.get-version.outputs.next-version }}
-          push: true
-          dockerfile-path: 'apps/idp-backend'
-          context-path: '.'
-          image-name: 'auth/idp-backend'

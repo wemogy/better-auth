@@ -5,11 +5,10 @@ import { authClient } from '@/lib/authClient';
 
 interface LoginFormClientProps {
   className?: string;
-  tenantId?: string;
   onSuccess?: () => void;
 }
 
-export function LoginFormClient({ className = '', tenantId, onSuccess }: LoginFormClientProps) {
+export function LoginFormClient({ className = '', onSuccess }: LoginFormClientProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -24,7 +23,6 @@ export function LoginFormClient({ className = '', tenantId, onSuccess }: LoginFo
       await authClient.signIn.email({
         email,
         password,
-        ...(tenantId && { tenantId }),
       });
       onSuccess?.();
     } catch (err: unknown) {

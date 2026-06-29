@@ -1,73 +1,132 @@
-# @wemogy/better-auth-cosmos Monorepo
+# @wemogy/better-auth-cosmos
 
-This repository contains the official wemogy tooling around the Azure Cosmos DB adapter for [better-auth](https://github.com/iway1/better-auth). It includes the adapter package itself together with demo applications that showcase how to integrate it in real projects.
+This repository contains the wemogy Azure Cosmos DB adapter for [Better Auth](https://better-auth.com). The package lets Better Auth persist users, sessions, accounts, verification records, and selected plugin data in Azure Cosmos DB.
 
 Maintained by **wemogy**.
 
-## Packages
+## Repository Contents
 
-- `packages/better-auth-cosmos` – Published as `@wemogy/better-auth-cosmos`. Provides the Cosmos DB adapter consumed by better-auth. See the package-level [README](packages/better-auth-cosmos/README.md) for detailed usage instructions.
-- `packages/better-auth-react` – Published as `@wemogy/better-auth-react`. Provides React components and hooks for better-auth authentication. See the package-level [README](packages/better-auth-react/README.md) for detailed usage instructions.
+| Path                          | Description                                                        |
+| ----------------------------- | ------------------------------------------------------------------ |
+| `packages/better-auth-cosmos` | Published package for the Cosmos DB adapter.                       |
+| `apps/demo-app`               | Next.js demo app using Better Auth with the local adapter package. |
+| `docs/wiki`                   | Source files for the GitHub Wiki.                                  |
+| `.github/workflows`           | Pull request checks, release automation, and wiki sync.            |
 
-## Applications
+## Package
 
-- `apps/demo-api` – Hono-based API that demonstrates how to expose better-auth endpoints backed by Cosmos DB.
-- `apps/demo` – React single-page application that interacts with the demo API to exercise the authentication flows.
+`@wemogy/better-auth-cosmos` exports `buildCosmosAdapter`, an async adapter factory for Better Auth.
+
+```ts
+import { betterAuth } from 'better-auth';
+import { buildCosmosAdapter } from '@wemogy/better-auth-cosmos';
+
+const adapter = await buildCosmosAdapter({
+  adapterId: 'cosmos',
+  adapterName: 'CosmosDB Adapter',
+  dbCredentials: {
+    endpoint: process.env.COSMOS_DB_ENDPOINT!,
+    key: process.env.COSMOS_DB_KEY!,
+  },
+  dbName: process.env.COSMOS_DB_NAME ?? 'better-auth',
+  debugLogs: process.env.NODE_ENV !== 'production',
+  usePlural: true,
+});
+
+export const auth = betterAuth({
+  database: adapter,
+  emailAndPassword: {
+    enabled: true,
+  },
+});
+```
 
 ## Getting Started
 
 Prerequisites:
 
-- Node.js 20 or newer
-- [pnpm](https://pnpm.io/) (the repo is configured with a workspace)
+- Node.js 20 or newer.
+- pnpm 10.18.3 or newer.
+- Azure Cosmos DB account credentials.
 
-Installation:
+Install dependencies:
 
 ```bash
 pnpm install
 ```
 
-Useful workspace commands:
-
-```bash
-pnpm dev          # Runs all development servers through Turborepo
-pnpm build        # Builds every package and app
-pnpm lint         # Executes the aggregated lint tasks
-pnpm format       # Formats the codebase with Prettier
-```
-
-Scope a command to a single project with `pnpm --filter`, for example:
-
-```bash
-pnpm --filter demo-api dev
-pnpm --filter demo dev
-pnpm --filter @wemogy/better-auth-cosmos test
-```
-
-## Local Development
-
-Both the adapter and the demos expect a Cosmos DB instance. Provide credentials using environment variables:
+Set Cosmos DB environment variables:
 
 ```bash
 COSMOS_DB_ENDPOINT="https://<your-account>.documents.azure.com:443/"
-COSMOS_DB_KEY="<secret>"
+COSMOS_DB_KEY="<cosmos-key>"
 COSMOS_DB_NAME="better-auth"
 ```
 
-- For the API demo, create a `.env` file in `apps/demo-api` with these variables before starting `pnpm --filter demo-api dev`.
-- The React demo (`apps/demo`) assumes the API is running on `http://localhost:8787` by default; adjust the client configuration if you change the API port.
+Run the demo app:
+
+```bash
+pnpm --filter demo-app dev
+```
+
+Run adapter tests:
+
+```bash
+pnpm --filter @wemogy/better-auth-cosmos test
+```
+
+## Better Auth Plugin Support
+
+The adapter derives its Cosmos DB containers from the Better Auth schema at runtime. The schema contains exactly the models required by the active plugins, so any plugin that stores data through the Better Auth database layer gets its containers created automatically — including third-party plugins the adapter has never seen.
+
+- Models the adapter knows get an optimized partition key (for example `session` is partitioned by `/token`, the lookup performed on every authenticated request).
+- Unknown plugin models fall back to `/id` as the partition key. Override per model through the `partitionKeys` config option.
+- Containers are created lazily with `createIfNotExists` when the adapter is initialized; nothing is provisioned for plugins that are not active.
+
+`usePlural: true` pluralizes the container names, for example `users`, `sessions`, `organizations`, and `twoFactors`.
+
+Verified end-to-end against a real Cosmos DB account: core persistence (email/password sign-up, sign-in, session lookup, sign-out) plus container provisioning for the Two-Factor and OIDC Provider plugins. Plugins beyond that are expected to work through the schema-driven mechanism but have no dedicated compatibility tests in this repository yet.
+
+## Development Commands
+
+```bash
+pnpm build          # Build all workspace projects through Turborepo
+pnpm lint:check     # Run lint checks
+pnpm typecheck      # Run TypeScript checks
+pnpm format:check   # Check formatting
+pnpm test           # Run adapter tests
+```
+
+Scope commands with `pnpm --filter`:
+
+```bash
+pnpm --filter @wemogy/better-auth-cosmos build
+pnpm --filter @wemogy/better-auth-cosmos test
+pnpm --filter demo-app dev
+```
+
+## Documentation
+
+Repository documentation lives in `docs/wiki` and is synced to the GitHub Wiki by `.github/workflows/sync-wiki.yaml`.
+
+Start with:
+
+- [Getting Started](docs/wiki/Getting-Started.md)
+- [Adapter Configuration](docs/wiki/Adapter-Configuration.md)
+- [Data Model and Containers](docs/wiki/Data-Model-and-Containers.md)
+- [Development and Testing](docs/wiki/Development-and-Testing.md)
 
 ## Release Process
 
-Releases are automated via GitHub Actions:
+Releases are automated through GitHub Actions:
 
 - Push changes to the `release` branch.
-- The workflow calculates the next semantic version, updates all workspace packages, publishes them to GitHub Packages, and creates a GitHub release tagged with the new version.
-
-## Contributing
-
-We welcome improvements, bug fixes, and new examples. Please fork the repository, open a feature branch, and submit a pull request. Ensure `pnpm build` and the relevant project-specific tests pass before requesting review.
+- The workflow calculates the next semantic version.
+- Workspace package versions are updated.
+- Packages are built and published to GitHub Packages.
+- A GitHub release is created for the generated tag.
 
 ## License
 
-MIT © wemogy
+MIT License
+Copyright (c) 2026 wemogy

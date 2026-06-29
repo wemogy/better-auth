@@ -1,3 +1,0 @@
-{
-  "extends": ["@wemogy/coding-style/commitlint.js"]
-}
