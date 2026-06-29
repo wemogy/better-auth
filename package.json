@@ -1,5 +1,5 @@
 {
-  "name": "snaatch-ui",
+  "name": "@wemogy/better-auth-cosmos-monorepo",
   "private": true,
   "scripts": {
     "prepare": "husky",
