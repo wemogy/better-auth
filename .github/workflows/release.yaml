@@ -81,7 +81,7 @@ jobs:
           registry-url: https://npm.pkg.github.com/
 
       - name: Publish to GitHub Packages
-        run: npm publish artifacts/*.tgz
+        run: npm publish ./artifacts/*.tgz
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -110,7 +110,7 @@ jobs:
         run: npm install -g npm@latest
 
       - name: Publish to npm
-        run: npm publish artifacts/*.tgz --access public --provenance
+        run: npm publish ./artifacts/*.tgz --access public --provenance
 
   github-release:
     name: Create GitHub release
