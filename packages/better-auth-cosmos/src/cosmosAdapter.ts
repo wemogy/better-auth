@@ -1,7 +1,7 @@
 import { ItemDefinition } from '@azure/cosmos';
 import type { CleanedWhere, Where } from 'better-auth/adapters';
-import { Cosmos } from './cosmos';
-import { queryBuilder } from './util/queryBuilder';
+import { Cosmos } from './cosmos.js';
+import { queryBuilder } from './util/queryBuilder.js';
 
 interface CosmosAdapterDeps {
   cosmos: Cosmos;
