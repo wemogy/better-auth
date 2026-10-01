@@ -1,8 +1,8 @@
 import { CosmosClientOptions } from '@azure/cosmos';
 import type { BetterAuthOptions } from 'better-auth';
 import { createAdapterFactory, type AdapterFactory, type DBAdapterDebugLogOption, type CustomAdapter } from 'better-auth/adapters';
-import { Cosmos } from './cosmos';
-import { CosmosAdapter } from './cosmosAdapter';
+import { Cosmos } from './cosmos.js';
+import { CosmosAdapter } from './cosmosAdapter.js';
 export { CosmosAdapter };
 
 interface CosmosAdapterConfig {
