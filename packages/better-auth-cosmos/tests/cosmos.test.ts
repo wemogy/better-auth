@@ -91,6 +91,38 @@ describe('Cosmos Class', () => {
     vi.clearAllMocks();
   });
 
+  describe('concurrent creation', () => {
+    const conflict = Object.assign(new Error('Resource with specified id already exists'), { code: 409 });
+
+    it('reads the database when another client created it at the same moment', async () => {
+      const read = vi.fn().mockResolvedValue({ database: mockDatabase });
+      Object.assign(mockCosmosClient, { database: vi.fn().mockReturnValue({ read }) });
+      mockCosmosClient.databases.createIfNotExists.mockRejectedValue(conflict);
+      mockDatabase.containers.createIfNotExists.mockResolvedValue({});
+
+      await expect(Cosmos.create({ endpoint: 'e', key: 'k' }, 'test-db', [{ name: 'users' }])).resolves.toBeDefined();
+      expect(read).toHaveBeenCalledTimes(1);
+      expect(mockDatabase.containers.createIfNotExists).toHaveBeenCalledTimes(1);
+    });
+
+    it('reads the container when another client created it at the same moment', async () => {
+      const read = vi.fn().mockResolvedValue({ container: mockContainer });
+      mockDatabase.container.mockReturnValue({ ...mockContainer, read });
+      mockCosmosClient.databases.createIfNotExists.mockResolvedValue({ database: mockDatabase });
+      mockDatabase.containers.createIfNotExists.mockRejectedValue(conflict);
+
+      await expect(Cosmos.create({ endpoint: 'e', key: 'k' }, 'test-db', [{ name: 'users' }])).resolves.toBeDefined();
+      expect(read).toHaveBeenCalledTimes(1);
+    });
+
+    it('still fails on any other error', async () => {
+      const forbidden = Object.assign(new Error('Forbidden'), { code: 403 });
+      mockCosmosClient.databases.createIfNotExists.mockRejectedValue(forbidden);
+
+      await expect(Cosmos.create({ endpoint: 'e', key: 'k' }, 'test-db', [{ name: 'users' }])).rejects.toBe(forbidden);
+    });
+  });
+
   describe('create', () => {
     it('should create Cosmos instance with database and containers', async () => {
       const credentials = { endpoint: 'test-endpoint', key: 'test-key' };
