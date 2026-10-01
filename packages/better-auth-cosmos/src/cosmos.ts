@@ -24,6 +24,23 @@ const partitionKeyFieldFromPath = (partitionKey: string): string => {
   return partitionKey.slice(1);
 };
 
+/**
+ * `createIfNotExists` reads first and creates on a miss, so two callers creating the
+ * same database or container at once (several app instances, or another Cosmos client
+ * in the same process) race: the loser gets HTTP 409. The resource exists then — read it.
+ */
+export const ignoreConcurrentCreation = async <T>(create: () => Promise<T>, read: () => Promise<T>): Promise<T> => {
+  try {
+    return await create();
+  } catch (error) {
+    const status = (error as { code?: number; statusCode?: number } | null)?.code ?? (error as { statusCode?: number } | null)?.statusCode;
+    if (status !== 409) {
+      throw error;
+    }
+    return read();
+  }
+};
+
 export class Cosmos {
   private client: CosmosClient;
   private database: Database;
@@ -41,7 +58,10 @@ export class Cosmos {
   public static async create(credentials: CosmosClientOptions, dbName?: string, containers?: ContainerSpec[], usePlural?: boolean) {
     const instance = new Cosmos(credentials);
     if (dbName) {
-      const { database } = await instance.client.databases.createIfNotExists({ id: dbName });
+      const { database } = await ignoreConcurrentCreation(
+        () => instance.client.databases.createIfNotExists({ id: dbName }),
+        () => instance.client.database(dbName).read(),
+      );
       instance.database = database;
     }
     if (instance.database && containers) {
@@ -84,7 +104,10 @@ export class Cosmos {
       // Validate the path up front so a bad config fails loudly here rather than
       // as a deferred container-creation rejection.
       this.partitionKeyFields[name] = partitionKeyFieldFromPath(partitionKey);
-      pending = this.database.containers.createIfNotExists({ id: name, partitionKey: { paths: [partitionKey] } }).catch(error => {
+      pending = ignoreConcurrentCreation(
+        () => this.database.containers.createIfNotExists({ id: name, partitionKey: { paths: [partitionKey] } }),
+        () => this.database.container(name).read(),
+      ).catch(error => {
         // Don't cache a failed creation: a transient error (throttling, network)
         // would otherwise poison this container for the whole process lifetime.
         // Drop the entry so a later operation can retry.
